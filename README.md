@@ -7,6 +7,49 @@ This repository supports:
 - `open_model` backend mode using an OpenAI-compatible local server
 - `demo` mode in the UI for meetings and offline previews
 
+## Quick Start
+
+Install dependencies:
+
+```powershell
+pip install -r requirements.txt
+npm install
+```
+
+Choose one provider mode by copying an example config:
+
+```powershell
+Copy-Item .env.commercial.example .env
+```
+
+or
+
+```powershell
+Copy-Item .env.open_model.example .env
+```
+
+Run:
+
+```powershell
+python -m http.server 8765
+python api_backend.py
+```
+
+Open:
+
+- Frontend: `http://127.0.0.1:8765/app.html`
+- Backend health: `http://127.0.0.1:8764/health`
+
+## Meeting Demo
+
+The frontend defaults to `Demo Mock (Meeting)` mode so you can preview:
+- generated solutions
+- Monte Carlo rollout results
+- labeling / dataset review screens
+- training JSON / JSONL preview
+
+without spending live API quota.
+
 ## What This Repo Does
 
 The pipeline is organized as:
@@ -35,15 +78,6 @@ The pipeline is organized as:
   Example config for local open-model mode
 - `BACKEND_PROVIDERS.md`
   Provider setup notes
-
-## Setup
-
-Install dependencies:
-
-```powershell
-pip install -r requirements.txt
-npm install
-```
 
 ## Environment Configuration
 
@@ -83,34 +117,6 @@ OPEN_MODEL_API_KEY=EMPTY
 OPEN_MODEL_GENERATE_MODEL=Qwen/Qwen2.5-VL-7B-Instruct
 OPEN_MODEL_VERIFY_MODEL=Qwen/Qwen2.5-VL-7B-Instruct
 ```
-
-## Run
-
-Frontend:
-
-```powershell
-python -m http.server 8765
-```
-
-Backend:
-
-```powershell
-python api_backend.py
-```
-
-Open:
-
-- Frontend: `http://127.0.0.1:8765/app.html`
-- Backend health: `http://127.0.0.1:8764/health`
-
-## Demo Mode
-
-The frontend defaults to `Demo Mock (Meeting)` so you can preview:
-- generated solutions
-- Monte Carlo rollout results
-- training JSON / JSONL preview
-
-without spending API quota.
 
 ## Training Data
 
