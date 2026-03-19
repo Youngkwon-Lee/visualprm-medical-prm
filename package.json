@@ -1,0 +1,17 @@
+{
+  "name": "visualprm",
+  "version": "1.0.0",
+  "description": "",
+  "main": "test_dataset_load.js",
+  "scripts": {
+    "test": "node test_dataset_load.js",
+    "test:browser": "node test_dataset_load.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "playwright": "^1.58.2"
+  }
+}

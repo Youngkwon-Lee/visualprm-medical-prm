@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medical PRM Pipeline</title>
+  <link rel="stylesheet" href="app.css?v=20260313b">
+</head>
+<body>
+  <header>
+    <h1>Medical PRM Pipeline</h1>
+    <div class="sep"></div>
+    <div class="meta">MCQ-based process reward model dataset builder</div>
+  </header>
+
+  <nav id="nav">
+    <button class="on" onclick="go(0)">1. Problem</button>
+    <button onclick="go(1)">2. Generation</button>
+    <button onclick="go(2)">3. Monte Carlo</button>
+    <button onclick="go(3)">4. Labeling</button>
+    <button onclick="go(4)">5. Dataset Review</button>
+    <button onclick="go(5)">6. Sampling QA (Optional)</button>
+    <button onclick="go(6)">7. JSON Preview</button>
+    <div class="spacer"></div>
+    <div class="info" id="qaProgress" style="margin-right:8px;color:#ca8a04;">QA 0/0</div>
+    <div class="info" id="navInfo">0 items</div>
+  </nav>
+
+  <div class="pstrip">
+    <div class="pstrip-fill" id="psFill" style="width:0%"></div>
+  </div>
+
+  <div class="content">
+    <div class="pg on" id="pg0"></div>
+    <div class="pg" id="pg1"></div>
+    <div class="pg" id="pg2"></div>
+    <div class="pg" id="pg3"></div>
+    <div class="pg" id="pg4"></div>
+    <div class="pg" id="pg5"></div>
+    <div class="pg" id="pg6"></div>
+  </div>
+
+  <script src="app.js?v=20260313g"></script>
+</body>
+</html>

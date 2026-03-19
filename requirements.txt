@@ -1,0 +1,7 @@
+datasets
+Pillow
+tqdm
+flask
+flask-cors
+openai
+python-dotenv

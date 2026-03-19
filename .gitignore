@@ -1,0 +1,38 @@
+# Secrets
+.env
+.env.open_model
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node
+node_modules/
+
+# Logs / temp
+*.log
+_tmp*
+
+# Local caches / extracted datasets
+.hf_cache/
+OmniMedVQA/
+
+# Large local assets
+images/
+
+# Local generated artifacts
+frontend_server.log
+frontend_server.err.log
+backend_server.log
+backend_server.err.log
+training_example_*.json
+training_example_*.jsonl
+*_midcheck*.json
+*_1c_1s_1k.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
