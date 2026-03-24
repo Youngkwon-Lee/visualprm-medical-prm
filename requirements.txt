@@ -5,3 +5,9 @@ flask
 flask-cors
 openai
 python-dotenv
+torch>=2.0
+transformers>=4.40
+accelerate>=0.27
+bitsandbytes>=0.41
+peft>=0.7
+pydantic>=2.0
