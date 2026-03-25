@@ -1,98 +1,109 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# VisualPRM Training Script (GPU A100 전용)
-# 사전 조건: setup_runpod.sh가 완료되었어야 함
-# 이 스크립트는 GPU 비용이 발생함
-
 DATASET_SIZE="${1:-standard}"
 WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
+PROJECT_DIR="$WORKSPACE_DIR/visualprm"
+VENV_DIR="${VENV_DIR:-/root/visualprm-venv}"
 
 echo "=========================================="
-echo "VisualPRM Training (GPU A100-80GB)"
+echo "VisualPRM GPU Training"
 echo "=========================================="
-echo "Dataset: $DATASET_SIZE"
-echo "Time: ~11 hours (standard) = $5.30 cost"
+echo "Dataset preset: $DATASET_SIZE"
 echo ""
 
-cd "$WORKSPACE_DIR/visualprm"
+cd "$PROJECT_DIR"
 
-# Check GPU availability
-echo "Checking GPU..."
-nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || {
-    echo "❌ No GPU found! Make sure you're on A100 instance"
-    exit 1
-}
-echo "✅ GPU ready"
-echo ""
-
-# Load environment
-export $(cat .env.production | grep -v '^#' | xargs)
-
-# 1. Start Qwen server in background
-echo "[1/3] Starting Qwen OpenAI-compatible server..."
-python runpod_qwen_openai_server.py > "$WORKSPACE_DIR/logs/server.log" 2>&1 &
-SERVER_PID=$!
-echo "  PID: $SERVER_PID"
-
-# Wait for server
-echo "  Waiting for server to start..."
-for i in {1..60}; do
-    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-        echo "  ✅ Server ready!"
-        break
-    fi
-    if [ $i -eq 60 ]; then
-        echo "  ❌ Server startup timeout"
-        kill $SERVER_PID 2>/dev/null || true
-        exit 1
-    fi
-    echo -n "."
-    sleep 1
-done
-echo ""
-
-# 2. Start training
-echo "[2/3] Starting training..."
-echo "  Dataset: $DATASET_SIZE"
-echo "  Batch size: 16"
-echo "  Epochs: 3"
-echo "  Learning rate: 2e-5"
-echo ""
-
-python train_visual_prm.py \
-    --model_name "Qwen/Qwen3-VL-30B-Instruct" \
-    --dataset "$DATASET_SIZE" \
-    --batch_size 16 \
-    --epochs 3 \
-    --learning_rate 2e-5 \
-    --use_lora true \
-    --use_mixed_precision true \
-    --save_interval 500 \
-    2>&1 | tee "$WORKSPACE_DIR/logs/training.log"
-
-TRAIN_EXIT_CODE=$?
-
-# 3. Cleanup
-echo ""
-echo "[3/3] Cleaning up..."
-kill $SERVER_PID 2>/dev/null || true
-echo "  ✅ Server stopped"
-
-# Results
-echo ""
-echo "=========================================="
-if [ $TRAIN_EXIT_CODE -eq 0 ]; then
-    echo "Training completed successfully! ✅"
-    echo ""
-    echo "Results:"
-    echo "  Model: $WORKSPACE_DIR/models/final/"
-    echo "  Logs: $WORKSPACE_DIR/logs/"
-    echo ""
-    echo "Next: Download model and run evaluation"
+if [ -f "$VENV_DIR/bin/activate" ]; then
+  # shellcheck disable=SC1091
+  source "$VENV_DIR/bin/activate"
 else
-    echo "Training failed ❌"
-    echo "Check logs: tail -f $WORKSPACE_DIR/logs/training.log"
-    exit 1
+  echo "Python virtual environment not found at $VENV_DIR"
+  echo "Run: bash setup_runpod.sh"
+  exit 1
 fi
-echo "=========================================="
+
+if ! command -v nvidia-smi >/dev/null 2>&1; then
+  echo "No GPU found. Attach a GPU pod first."
+  exit 1
+fi
+
+export $(grep -v '^#' .env.production | xargs)
+export HF_HOME="${HF_HOME:-$WORKSPACE_DIR/.cache/huggingface}"
+START_LOCAL_QWEN_SERVER="${START_LOCAL_QWEN_SERVER:-0}"
+SERVER_PID=""
+
+echo "[1/3] Optional local Qwen OpenAI-compatible server"
+if [ "$START_LOCAL_QWEN_SERVER" = "1" ]; then
+  python runpod_qwen_openai_server.py > "$WORKSPACE_DIR/logs/server.log" 2>&1 &
+  SERVER_PID=$!
+
+  SERVER_START_TIMEOUT="${SERVER_START_TIMEOUT:-300}"
+  for ((i=1; i<=SERVER_START_TIMEOUT; i++)); do
+    if curl -s http://127.0.0.1:8000/health >/dev/null 2>&1; then
+      echo "  Qwen server ready"
+      break
+    fi
+    if [ "$i" -eq "$SERVER_START_TIMEOUT" ]; then
+      echo "  Qwen server failed to start"
+      kill "$SERVER_PID" 2>/dev/null || true
+      exit 1
+    fi
+    sleep 1
+  done
+else
+  echo "  Skipping local Qwen server; train_visual_prm.py loads the model directly."
+fi
+
+echo "[2/3] Select training data preset"
+case "$DATASET_SIZE" in
+  mvp)
+    TRAIN_FILE="$WORKSPACE_DIR/data/train_mvp.jsonl"
+    VAL_FILE="$WORKSPACE_DIR/data/val_mvp.jsonl"
+    ;;
+  standard)
+    TRAIN_FILE="$WORKSPACE_DIR/data/train_standard.jsonl"
+    VAL_FILE="$WORKSPACE_DIR/data/val_standard.jsonl"
+    ;;
+  large)
+    TRAIN_FILE="$WORKSPACE_DIR/data/train_large.jsonl"
+    VAL_FILE="$WORKSPACE_DIR/data/val_large.jsonl"
+    ;;
+  *)
+    echo "Unknown dataset preset: $DATASET_SIZE"
+    if [ -n "$SERVER_PID" ]; then
+      kill "$SERVER_PID" 2>/dev/null || true
+    fi
+    exit 1
+    ;;
+esac
+
+if [ ! -f "$TRAIN_FILE" ]; then
+  echo "Training file not found: $TRAIN_FILE"
+  echo "Prepare step-level JSONL files under /workspace/data first."
+  if [ -n "$SERVER_PID" ]; then
+    kill "$SERVER_PID" 2>/dev/null || true
+  fi
+  exit 1
+fi
+
+echo "[3/3] Train step-level PRM"
+python train_visual_prm.py \
+  --model_name "${MODEL_NAME:-Qwen/Qwen2.5-7B-Instruct}" \
+  --train_file "$TRAIN_FILE" \
+  --val_file "$VAL_FILE" \
+  --batch_size "${TRAINING_BATCH_SIZE:-1}" \
+  --grad_accum "${TRAINING_GRAD_ACCUM:-8}" \
+  --epochs "${TRAINING_EPOCHS:-3}" \
+  --learning_rate "${TRAINING_LEARNING_RATE:-2e-5}" \
+  --save_interval "${TRAINING_SAVE_INTERVAL:-500}" \
+  2>&1 | tee "$WORKSPACE_DIR/logs/training.log"
+
+if [ -n "$SERVER_PID" ]; then
+  kill "$SERVER_PID" 2>/dev/null || true
+fi
+
+echo ""
+echo "Training finished."
+echo "Models: $WORKSPACE_DIR/models"
+echo "Logs:   $WORKSPACE_DIR/logs"

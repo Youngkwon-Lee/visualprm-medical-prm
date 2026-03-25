@@ -13,7 +13,31 @@ Key variables:
 - `OPENAI_GENERATE_MODEL`
 - `OPENAI_VERIFY_MODEL`
 
-## 2. Open-model / Local server
+Recommended default for commercial text-first experiments:
+- `OPENAI_GENERATE_MODEL=gpt-4o-mini`
+- `OPENAI_VERIFY_MODEL=gpt-4o-mini`
+
+## 2. Commercial / Gemini API
+
+Use:
+- `.env.gemini.example`
+
+Key variables:
+- `MODEL_PROVIDER=gemini`
+- `GEMINI_API_KEY`
+- `GEMINI_BASE_URL`
+- `GEMINI_GENERATE_MODEL`
+- `GEMINI_VERIFY_MODEL`
+
+Recommended default:
+- `GEMINI_GENERATE_MODEL=gemini-2.5-flash`
+- `GEMINI_VERIFY_MODEL=gemini-2.5-flash`
+
+Notes:
+- Gemini uses the official OpenAI-compatible endpoint:
+  - `https://generativelanguage.googleapis.com/v1beta/openai/`
+
+## 3. Open-model / Local server
 
 Use:
 - `.env.open_model.example`

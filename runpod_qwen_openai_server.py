@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""OpenAI-compatible chat completions server for Qwen Vision models on RunPod.
+"""OpenAI-compatible chat completions server for Qwen text models on RunPod.
 
-Supports Qwen3-VL-30B and other vision models.
 This server is intended for the existing `open_model` backend path:
 `api_backend.py` -> OpenAI-compatible endpoint -> local Qwen model.
 """
@@ -17,7 +16,7 @@ from flask import Flask, jsonify, request
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
-MODEL_ID = os.getenv("QWEN_MODEL_ID", "Qwen/Qwen3-VL-30B-Instruct")
+MODEL_ID = os.getenv("QWEN_MODEL_ID", "Qwen/Qwen2.5-7B-Instruct")
 HOST = os.getenv("QWEN_SERVER_HOST", "0.0.0.0")
 PORT = int(os.getenv("QWEN_SERVER_PORT", "8000"))
 MAX_NEW_TOKENS = int(os.getenv("QWEN_MAX_NEW_TOKENS", "768"))

@@ -1,149 +1,104 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# VisualPRM RunPod Setup (CPU/저가 인스턴스용)
-# GPU 시작 전에 모든 세팅을 완료
-# 모델 다운로드, 의존성 설치, 환경 설정
-# GPU 비용 0!
+# CPU-first setup for RunPod.
+# Goal: prepare environment and download the model before attaching a GPU pod.
 
 WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$WORKSPACE_DIR/visualprm"
+CACHE_DIR="$WORKSPACE_DIR/.cache/huggingface"
+VENV_DIR="${VENV_DIR:-/root/visualprm-venv}"
+WORKSPACE_VENV_LINK="$WORKSPACE_DIR/.venv"
+VENV_CONFIG="$VENV_DIR/pyvenv.cfg"
 
 echo "=========================================="
-echo "VisualPRM Setup (CPU Only)"
+echo "VisualPRM RunPod Setup (CPU-first)"
 echo "=========================================="
 echo "Workspace: $WORKSPACE_DIR"
+echo "Project:   $PROJECT_DIR"
 echo ""
 
-# 1. Create workspace
-echo "[1/5] Creating workspace directories..."
-mkdir -p "$WORKSPACE_DIR"/{data,models,.cache,logs}
+mkdir -p "$WORKSPACE_DIR"/{data,models,logs,.cache}
 cd "$WORKSPACE_DIR"
 
-# 2. Copy repository
-echo "[2/5] Setting up repository..."
-if [ ! -d "visualprm" ]; then
-    if [ -d "$REPO_DIR" ]; then
-        cp -r "$REPO_DIR" visualprm
+if [ ! -d "$PROJECT_DIR" ]; then
+  cp -r "$REPO_DIR" "$PROJECT_DIR"
+fi
+cd "$PROJECT_DIR"
+
+echo "[1/5] Creating Python virtual environment"
+if [ ! -f "$VENV_CONFIG" ] || ! grep -qi '^include-system-site-packages = true' "$VENV_CONFIG"; then
+  if [ -d "$VENV_DIR" ]; then
+    mv "$VENV_DIR" "${VENV_DIR}.old.$(date +%s)"
+  fi
+  python -m venv --system-site-packages "$VENV_DIR"
+fi
+
+if [ -e "$WORKSPACE_VENV_LINK" ] || [ -L "$WORKSPACE_VENV_LINK" ]; then
+  CURRENT_LINK_TARGET="$(readlink "$WORKSPACE_VENV_LINK" 2>/dev/null || true)"
+  if [ "$CURRENT_LINK_TARGET" != "$VENV_DIR" ]; then
+    if [ -L "$WORKSPACE_VENV_LINK" ]; then
+      rm -f "$WORKSPACE_VENV_LINK"
     else
-        echo "Error: Repository not found at $REPO_DIR"
-        exit 1
+      mv "$WORKSPACE_VENV_LINK" "${WORKSPACE_VENV_LINK}.old.$(date +%s)"
     fi
+  fi
 fi
-cd visualprm
 
-# 3. Install dependencies (Python packages only, no GPU)
-echo "[3/5] Installing Python dependencies..."
-python -m pip install -q --upgrade pip setuptools wheel
-pip install -q -r requirements.txt
-pip install -q huggingface-hub
+if [ ! -L "$WORKSPACE_VENV_LINK" ]; then
+  ln -s "$VENV_DIR" "$WORKSPACE_VENV_LINK"
+fi
+# shellcheck disable=SC1091
+source "$VENV_DIR/bin/activate"
 
-echo "  ✅ Dependencies installed"
+echo "[2/5] Installing Python dependencies"
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install \
+  datasets \
+  Pillow \
+  tqdm \
+  flask \
+  flask-cors \
+  openai \
+  python-dotenv \
+  huggingface-hub \
+  filelock==3.19.1 \
+  fsspec==2025.9.0 \
+  transformers==4.48.3 \
+  accelerate==0.33.0 \
+  tokenizers==0.21.0 \
+  sentencepiece \
+  peft
 
-# 4. Download model to cache (큰 작업, 10-20분 소요)
-echo "[4/5] Downloading Qwen3-VL-30B model to cache..."
-echo "  This may take 10-20 minutes (depends on internet speed)"
-echo "  Model size: ~65GB"
 echo ""
-
-python << 'EOF'
-import os
-from pathlib import Path
+echo "[3/5] Downloading Qwen2.5-7B-Instruct"
+export HF_HOME="$CACHE_DIR"
+python - << 'PY'
 from huggingface_hub import snapshot_download
+snapshot_download(
+    "Qwen/Qwen2.5-7B-Instruct",
+    cache_dir="/workspace/.cache/huggingface",
+    local_dir_use_symlinks=False,
+    revision="main",
+)
+print("Model download complete")
+PY
 
-cache_dir = Path("/workspace/.cache/huggingface")
-cache_dir.mkdir(parents=True, exist_ok=True)
-
-model_id = "Qwen/Qwen3-VL-30B-Instruct"
-print(f"Downloading {model_id}...")
-print(f"Cache: {cache_dir}")
-print("")
-
-try:
-    downloaded_path = snapshot_download(
-        model_id,
-        cache_dir=str(cache_dir),
-        local_dir_use_symlinks=False,
-        revision="main",
-    )
-    print(f"\n✅ Model downloaded successfully!")
-    print(f"   Path: {downloaded_path}")
-
-    # 모델 구조 확인
-    model_files = list(Path(downloaded_path).iterdir())
-    print(f"   Files: {len(model_files)} files")
-    for f in sorted(model_files)[:5]:
-        print(f"     - {f.name}")
-
-except Exception as e:
-    print(f"❌ Download failed: {e}")
-    exit(1)
-EOF
-
-if [ $? -eq 0 ]; then
-    echo "  ✅ Model cache ready"
-else
-    echo "  ❌ Model download failed"
-    exit 1
-fi
-
-# 5. Environment setup
 echo ""
-echo "[5/5] Creating environment configuration..."
+echo "[4/5] Writing runpod environment file"
+cp .env.runpod .env.production
+echo "Created $PROJECT_DIR/.env.production"
 
-# .env 파일 생성 (운영용)
-cat > "$WORKSPACE_DIR/visualprm/.env.production" << 'ENVFILE'
-# RunPod A100 Production Configuration
+echo ""
+echo "[5/5] Verifying setup"
+bash verify_setup.sh
 
-MODEL_PROVIDER=open_model
-OPEN_MODEL_BASE_URL=http://localhost:8000
-OPEN_MODEL_API_KEY=EMPTY
-OPEN_MODEL_GENERATE_MODEL=Qwen/Qwen3-VL-30B-Instruct
-
-QWEN_MODEL_ID=Qwen/Qwen3-VL-30B-Instruct
-QWEN_SERVER_HOST=0.0.0.0
-QWEN_SERVER_PORT=8000
-QWEN_MAX_NEW_TOKENS=512
-QWEN_LOAD_IN_4BIT=0
-
-CUDA_VISIBLE_DEVICES=0
-MIXED_PRECISION=fp16
-GRADIENT_CHECKPOINTING=1
-
-TRAINING_BATCH_SIZE=16
-TRAINING_EPOCHS=3
-TRAINING_LEARNING_RATE=2e-5
-DATASET_NAME=standard
-
-WORKSPACE_DIR=/workspace
-DATA_DIR=/workspace/data
-OUTPUT_DIR=/workspace/models
-CACHE_DIR=/workspace/.cache
-ENVFILE
-
-echo "  ✅ Configuration created: .env.production"
-
-# Setup verification
 echo ""
 echo "=========================================="
-echo "Setup Complete! ✅"
+echo "Setup complete"
 echo "=========================================="
-echo ""
-echo "Next steps:"
-echo ""
-echo "1. VERIFY SETUP (test server without GPU)"
-echo "   bash verify_setup.sh"
-echo ""
-echo "2. START GPU INSTANCE (A100-80GB)"
-echo "   - Go to RunPod console"
-echo "   - Pause current instance"
-echo "   - Select A100-80GB GPU"
-echo "   - Resume"
-echo ""
-echo "3. RUN TRAINING (on GPU instance)"
-echo "   bash train_runpod.sh standard"
-echo ""
-echo "=========================================="
-echo "Setup saved in: $WORKSPACE_DIR"
-echo "Cache size: $(du -sh $WORKSPACE_DIR/.cache 2>/dev/null | cut -f1)"
-echo "=========================================="
+echo "Next:"
+echo "  1. Attach or switch to a GPU pod"
+echo "  2. Prepare step-level training JSONL under /workspace/data"
+echo "  3. Run: bash train_runpod.sh standard"

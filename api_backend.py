@@ -44,6 +44,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_GENERATE_MODEL = os.getenv("OPENAI_GENERATE_MODEL", "gpt-4o")
 OPENAI_VERIFY_MODEL = os.getenv("OPENAI_VERIFY_MODEL", OPENAI_GENERATE_MODEL)
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/").strip()
+GEMINI_GENERATE_MODEL = os.getenv("GEMINI_GENERATE_MODEL", "gemini-2.5-flash")
+GEMINI_VERIFY_MODEL = os.getenv("GEMINI_VERIFY_MODEL", GEMINI_GENERATE_MODEL)
+
 OPEN_MODEL_BASE_URL = os.getenv("OPEN_MODEL_BASE_URL", "").strip()
 OPEN_MODEL_API_KEY = os.getenv("OPEN_MODEL_API_KEY", "EMPTY").strip() or "EMPTY"
 OPEN_MODEL_GENERATE_MODEL = os.getenv("OPEN_MODEL_GENERATE_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
@@ -51,6 +56,10 @@ OPEN_MODEL_VERIFY_MODEL = os.getenv("OPEN_MODEL_VERIFY_MODEL", OPEN_MODEL_GENERA
 
 
 def build_provider_client():
+    if MODEL_PROVIDER == "gemini":
+        if not GEMINI_API_KEY:
+            return None
+        return openai.OpenAI(api_key=GEMINI_API_KEY, base_url=GEMINI_BASE_URL)
     if MODEL_PROVIDER == "open_model":
         if not OPEN_MODEL_BASE_URL:
             return None
@@ -61,11 +70,19 @@ def build_provider_client():
 
 
 def provider_generate_model() -> str:
-    return OPEN_MODEL_GENERATE_MODEL if MODEL_PROVIDER == "open_model" else OPENAI_GENERATE_MODEL
+    if MODEL_PROVIDER == "gemini":
+        return GEMINI_GENERATE_MODEL
+    if MODEL_PROVIDER == "open_model":
+        return OPEN_MODEL_GENERATE_MODEL
+    return OPENAI_GENERATE_MODEL
 
 
 def provider_verify_model() -> str:
-    return OPEN_MODEL_VERIFY_MODEL if MODEL_PROVIDER == "open_model" else OPENAI_VERIFY_MODEL
+    if MODEL_PROVIDER == "gemini":
+        return GEMINI_VERIFY_MODEL
+    if MODEL_PROVIDER == "open_model":
+        return OPEN_MODEL_VERIFY_MODEL
+    return OPENAI_VERIFY_MODEL
 
 
 def provider_ready() -> bool:
@@ -82,7 +99,17 @@ def _parse_json_text(text: str) -> dict:
         if text.startswith("json"):
             text = text[4:]
         text = text.strip()
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Common model issues: trailing commas, extra prose around a JSON object/array.
+        candidate = text
+        obj_start = candidate.find("{")
+        obj_end = candidate.rfind("}")
+        if obj_start != -1 and obj_end != -1 and obj_end > obj_start:
+            candidate = candidate[obj_start:obj_end + 1]
+        candidate = re.sub(r",\s*([}\]])", r"\1", candidate)
+        return json.loads(candidate)
 
 
 def _chat_json_completion(*, messages: list[dict], model: str, temperature: float, max_tokens: int, timeout: int, top_p: float | None = None, attempts: int = 3) -> dict:
@@ -173,7 +200,13 @@ def health():
         "status": "ok",
         "provider": MODEL_PROVIDER,
         "client_ready": provider_ready(),
-        "api_key_configured": bool(OPENAI_API_KEY) if MODEL_PROVIDER == "openai" else bool(OPEN_MODEL_BASE_URL),
+        "api_key_configured": (
+            bool(OPENAI_API_KEY)
+            if MODEL_PROVIDER == "openai"
+            else bool(GEMINI_API_KEY)
+            if MODEL_PROVIDER == "gemini"
+            else bool(OPEN_MODEL_BASE_URL)
+        ),
         "mode": MODEL_PROVIDER if client else f"{MODEL_PROVIDER}_not_ready",
         "generate_model": provider_generate_model(),
         "verify_model": provider_verify_model(),
@@ -389,7 +422,11 @@ if __name__ == "__main__":
     print("Starting API backend on http://localhost:8764")
     print(f"Provider mode: {MODEL_PROVIDER}")
     if client:
-        if MODEL_PROVIDER == "open_model":
+        if MODEL_PROVIDER == "gemini":
+            print(f"Gemini backend ready via {GEMINI_BASE_URL}")
+            print(f"Generate model: {provider_generate_model()}")
+            print(f"Verify model: {provider_verify_model()}")
+        elif MODEL_PROVIDER == "open_model":
             print(f"Open-model backend ready via {OPEN_MODEL_BASE_URL}")
             print(f"Generate model: {provider_generate_model()}")
             print(f"Verify model: {provider_verify_model()}")

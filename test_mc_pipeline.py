@@ -19,8 +19,10 @@ import asyncio
 import io
 import json
 import os
+import re
 import sys
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -32,12 +34,57 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
 
-API_KEY = os.getenv("OPENAI_API_KEY")
-if not API_KEY:
-    print("[ERROR] OPENAI_API_KEY not found in .env")
-    sys.exit(1)
+MODEL_PROVIDER = os.getenv("MODEL_PROVIDER", "openai").strip().lower()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_GENERATE_MODEL = os.getenv("OPENAI_GENERATE_MODEL", "gpt-4o-mini")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/").strip()
+GEMINI_GENERATE_MODEL = os.getenv("GEMINI_GENERATE_MODEL", "gemini-2.5-flash")
+OPEN_MODEL_API_KEY = os.getenv("OPEN_MODEL_API_KEY", "EMPTY").strip() or "EMPTY"
+OPEN_MODEL_BASE_URL = os.getenv("OPEN_MODEL_BASE_URL", "").strip()
+OPEN_MODEL_GENERATE_MODEL = os.getenv("OPEN_MODEL_GENERATE_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct")
+BACKEND_URL = os.getenv("MC_BACKEND_URL", "http://127.0.0.1:8764").rstrip("/")
 
-client = AsyncOpenAI(api_key=API_KEY)
+
+def build_async_client() -> AsyncOpenAI:
+    if MODEL_PROVIDER == "gemini":
+        if not GEMINI_API_KEY:
+            print("[ERROR] GEMINI_API_KEY not found in .env")
+            sys.exit(1)
+        return AsyncOpenAI(api_key=GEMINI_API_KEY, base_url=GEMINI_BASE_URL)
+    if MODEL_PROVIDER == "open_model":
+        if not OPEN_MODEL_BASE_URL:
+            print("[ERROR] OPEN_MODEL_BASE_URL not found in .env")
+            sys.exit(1)
+        return AsyncOpenAI(api_key=OPEN_MODEL_API_KEY, base_url=OPEN_MODEL_BASE_URL)
+    if not OPENAI_API_KEY:
+        print("[ERROR] OPENAI_API_KEY not found in .env")
+        sys.exit(1)
+    return AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+
+def generate_model_name() -> str:
+    if MODEL_PROVIDER == "gemini":
+        return GEMINI_GENERATE_MODEL
+    if MODEL_PROVIDER == "open_model":
+        return OPEN_MODEL_GENERATE_MODEL
+    return OPENAI_GENERATE_MODEL
+
+
+client = build_async_client()
+
+
+async def post_backend_json(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def _request():
+        req = urllib.request.Request(
+            f"{BACKEND_URL}{path}",
+            data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=90) as response:
+            return json.loads(response.read().decode())
+
+    return await asyncio.to_thread(_request)
 
 PAPER_TEMPERATURE = 0.7
 PAPER_TOP_P = 0.95
@@ -103,32 +150,69 @@ Return ONLY valid JSON in this format:
 """.strip()
 
 
+def parse_json_text(text: str) -> dict[str, Any]:
+    text = (text or "").strip()
+    if text.startswith("```"):
+        text = text.split("```")[1]
+        if text.startswith("json"):
+            text = text[4:]
+        text = text.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        candidate = text
+        obj_start = candidate.find("{")
+        obj_end = candidate.rfind("}")
+        if obj_start != -1 and obj_end != -1 and obj_end > obj_start:
+            candidate = candidate[obj_start:obj_end + 1]
+        candidate = re.sub(r",\s*([}\]])", r"\1", candidate)
+        return json.loads(candidate)
+
+
 async def request_json(
     prompt: str,
     *,
     temperature: float,
     top_p: float,
+    model: str,
     max_tokens: int = 900,
+    attempts: int = 3,
 ) -> dict[str, Any]:
-    response = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=temperature,
-        top_p=top_p,
-        max_tokens=max_tokens,
-        timeout=60,
-        response_format={"type": "json_object"},
-    )
-    text = response.choices[0].message.content or "{}"
-    return json.loads(text)
+    last_exc: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            response = await client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=max_tokens,
+                timeout=60,
+                response_format={"type": "json_object"},
+            )
+            text = response.choices[0].message.content or "{}"
+            return parse_json_text(text)
+        except (json.JSONDecodeError, ValueError) as exc:
+            last_exc = exc
+            if attempt == attempts - 1:
+                raise
+            await asyncio.sleep(1.2 * (attempt + 1))
+    raise last_exc or RuntimeError("request_json failed without exception")
 
 
 async def generate_solution(case: dict[str, Any], solution_index: int) -> dict[str, Any]:
     deterministic = solution_index == 0
-    result = await request_json(
-        build_generation_prompt(case),
-        temperature=0.0 if deterministic else PAPER_TEMPERATURE,
-        top_p=1.0 if deterministic else PAPER_TOP_P,
+    result = await post_backend_json(
+        "/generate-steps",
+        {
+            "question": case["question"],
+            "options": normalize_options(case["options"]),
+            "gold": int(case["gold"]),
+            "dataset": case.get("dataset", "pathvqa"),
+            "case_type": case.get("case_type", "Medical"),
+            "temperature": 0.0 if deterministic else PAPER_TEMPERATURE,
+            "top_p": 1.0 if deterministic else PAPER_TOP_P,
+        },
     )
     steps = result.get("steps") or []
     if not steps:
@@ -163,10 +247,18 @@ async def generate_solution(case: dict[str, Any], solution_index: int) -> dict[s
 
 
 async def sample_continuation(case: dict[str, Any], prefix_steps: list[dict[str, str]]) -> dict[str, Any]:
-    return await request_json(
-        build_generation_prompt(case, prefix_steps=prefix_steps),
-        temperature=PAPER_TEMPERATURE,
-        top_p=PAPER_TOP_P,
+    return await post_backend_json(
+        "/generate-steps",
+        {
+            "question": case["question"],
+            "options": normalize_options(case["options"]),
+            "gold": int(case["gold"]),
+            "dataset": case.get("dataset", "pathvqa"),
+            "case_type": case.get("case_type", "Medical"),
+            "temperature": PAPER_TEMPERATURE,
+            "top_p": PAPER_TOP_P,
+            "prefix_steps": prefix_steps,
+        },
     )
 
 
@@ -292,7 +384,8 @@ async def process_dataset(
             "num_cases": num_cases,
             "num_solutions": num_solutions,
             "rollout_k": k,
-            "model": "gpt-4o-mini",
+            "provider": MODEL_PROVIDER,
+            "model": generate_model_name(),
             "paper_sampling_temperature": PAPER_TEMPERATURE,
             "paper_sampling_top_p": PAPER_TOP_P,
         },

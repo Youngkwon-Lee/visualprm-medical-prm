@@ -1,0 +1,26 @@
+{
+  "train_path": "D:\\visualprm\\runpod_data\\rationale_train_sample.jsonl",
+  "val_path": "D:\\visualprm\\runpod_data\\rationale_val_sample.jsonl",
+  "total_cases": 10,
+  "train_cases": [
+    "pathvqa_000000",
+    "pathvqa_000004",
+    "pmcvqa_000001",
+    "vqarad_000000",
+    "pathvqa_000005",
+    "pmcvqa_000000",
+    "omnimedvqa_000000",
+    "omnimedvqa_000001"
+  ],
+  "val_cases": [
+    "vqarad_000001",
+    "pathvqa_000001"
+  ],
+  "source_inputs": [
+    "D:\\visualprm\\omnimedvqa_test_results_midcheck4_2c_2s_4k.json",
+    "D:\\visualprm\\pathvqa_test_results_midcheck4_2c_2s_4k.json",
+    "D:\\visualprm\\pmcvqa_test_results_midcheck_2c_2s_4k.json",
+    "D:\\visualprm\\vqarad_test_results_midcheck_2c_2s_4k.json",
+    "D:\\visualprm\\pathvqa_test_results_gemini_10c_2s_4k_retry2.json"
+  ]
+}

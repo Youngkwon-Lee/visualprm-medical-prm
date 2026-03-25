@@ -4,6 +4,7 @@ Medical multi-step PRM dataset builder for VQA-style tasks.
 
 This repository supports:
 - `commercial` backend mode using the OpenAI API
+- `gemini` backend mode using Google's OpenAI-compatible Gemini API
 - `open_model` backend mode using an OpenAI-compatible local server
 - `demo` mode in the UI for meetings and offline previews
 
@@ -26,6 +27,12 @@ or
 
 ```powershell
 Copy-Item .env.open_model.example .env
+```
+
+or
+
+```powershell
+Copy-Item .env.gemini.example .env
 ```
 
 Run:
@@ -96,8 +103,8 @@ Then edit `.env`:
 ```env
 MODEL_PROVIDER=openai
 OPENAI_API_KEY=your_key_here
-OPENAI_GENERATE_MODEL=gpt-4o
-OPENAI_VERIFY_MODEL=gpt-4o
+OPENAI_GENERATE_MODEL=gpt-4o-mini
+OPENAI_VERIFY_MODEL=gpt-4o-mini
 ```
 
 ### 2. Open Model / Local Server
@@ -116,6 +123,24 @@ OPEN_MODEL_BASE_URL=http://127.0.0.1:8000/v1
 OPEN_MODEL_API_KEY=EMPTY
 OPEN_MODEL_GENERATE_MODEL=Qwen/Qwen2.5-VL-7B-Instruct
 OPEN_MODEL_VERIFY_MODEL=Qwen/Qwen2.5-VL-7B-Instruct
+```
+
+### 3. Gemini / OpenAI-Compatible Commercial Endpoint
+
+Copy:
+
+```powershell
+Copy-Item .env.gemini.example .env
+```
+
+Then edit `.env`:
+
+```env
+MODEL_PROVIDER=gemini
+GEMINI_API_KEY=your_key_here
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+GEMINI_GENERATE_MODEL=gemini-2.5-flash
+GEMINI_VERIFY_MODEL=gemini-2.5-flash
 ```
 
 ## Training Data
