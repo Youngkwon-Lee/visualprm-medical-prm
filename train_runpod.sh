@@ -31,6 +31,7 @@ fi
 export $(grep -v '^#' .env.production | xargs)
 export HF_HOME="${HF_HOME:-$WORKSPACE_DIR/.cache/huggingface}"
 START_LOCAL_QWEN_SERVER="${START_LOCAL_QWEN_SERVER:-0}"
+TRAINING_TASK="${TRAINING_TASK:-prm_scorer}"
 SERVER_PID=""
 
 echo "[1/3] Optional local Qwen OpenAI-compatible server"
@@ -56,21 +57,38 @@ else
 fi
 
 echo "[2/3] Select training data preset"
-case "$DATASET_SIZE" in
-  mvp)
-    TRAIN_FILE="$WORKSPACE_DIR/data/train_mvp.jsonl"
-    VAL_FILE="$WORKSPACE_DIR/data/val_mvp.jsonl"
+case "$TRAINING_TASK" in
+  prm_scorer)
+    case "$DATASET_SIZE" in
+      mvp)
+        TRAIN_FILE="$WORKSPACE_DIR/data/train_mvp.jsonl"
+        VAL_FILE="$WORKSPACE_DIR/data/val_mvp.jsonl"
+        ;;
+      standard)
+        TRAIN_FILE="$WORKSPACE_DIR/data/train_standard.jsonl"
+        VAL_FILE="$WORKSPACE_DIR/data/val_standard.jsonl"
+        ;;
+      large)
+        TRAIN_FILE="$WORKSPACE_DIR/data/train_large.jsonl"
+        VAL_FILE="$WORKSPACE_DIR/data/val_large.jsonl"
+        ;;
+      *)
+        echo "Unknown dataset preset: $DATASET_SIZE"
+        if [ -n "$SERVER_PID" ]; then
+          kill "$SERVER_PID" 2>/dev/null || true
+        fi
+        exit 1
+        ;;
+    esac
+    TRAIN_SCRIPT="train_visual_prm.py"
     ;;
-  standard)
-    TRAIN_FILE="$WORKSPACE_DIR/data/train_standard.jsonl"
-    VAL_FILE="$WORKSPACE_DIR/data/val_standard.jsonl"
-    ;;
-  large)
-    TRAIN_FILE="$WORKSPACE_DIR/data/train_large.jsonl"
-    VAL_FILE="$WORKSPACE_DIR/data/val_large.jsonl"
+  rationale_generator)
+    TRAIN_FILE="${RATIONALE_TRAIN_FILE:-$WORKSPACE_DIR/data/rationale_train_sample.jsonl}"
+    VAL_FILE="${RATIONALE_VAL_FILE:-$WORKSPACE_DIR/data/rationale_val_sample.jsonl}"
+    TRAIN_SCRIPT="train_rationale_generator.py"
     ;;
   *)
-    echo "Unknown dataset preset: $DATASET_SIZE"
+    echo "Unknown TRAINING_TASK: $TRAINING_TASK"
     if [ -n "$SERVER_PID" ]; then
       kill "$SERVER_PID" 2>/dev/null || true
     fi
@@ -87,8 +105,8 @@ if [ ! -f "$TRAIN_FILE" ]; then
   exit 1
 fi
 
-echo "[3/3] Train step-level PRM"
-python train_visual_prm.py \
+echo "[3/3] Train model"
+python "$TRAIN_SCRIPT" \
   --model_name "${MODEL_NAME:-Qwen/Qwen2.5-7B-Instruct}" \
   --train_file "$TRAIN_FILE" \
   --val_file "$VAL_FILE" \
