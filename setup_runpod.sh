@@ -27,6 +27,15 @@ if [ ! -d "$PROJECT_DIR" ]; then
 fi
 cd "$PROJECT_DIR"
 
+if [ -f "$PROJECT_DIR/.env.runpod" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$PROJECT_DIR/.env.runpod"
+  set +a
+fi
+
+SERVE_MODEL_ID="${QWEN_SERVE_MODEL_ID:-${QWEN_MODEL_ID:-Qwen/Qwen2.5-7B-Instruct}}"
+
 echo "[1/5] Creating Python virtual environment"
 if [ ! -f "$VENV_CONFIG" ] || ! grep -qi '^include-system-site-packages = true' "$VENV_CONFIG"; then
   if [ -d "$VENV_DIR" ]; then
@@ -65,19 +74,27 @@ python -m pip install \
   huggingface-hub \
   filelock==3.19.1 \
   fsspec==2025.9.0 \
-  transformers==4.48.3 \
+  transformers==4.57.3 \
   accelerate==0.33.0 \
-  tokenizers==0.21.0 \
+  tokenizers \
   sentencepiece \
-  peft
+  peft \
+  qwen-vl-utils
+
+if [[ "$SERVE_MODEL_ID" == *"-VL-"* ]]; then
+  python -m pip install --upgrade accelerate>=1.13.0
+  python -m pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+fi
 
 echo ""
-echo "[3/5] Downloading Qwen2.5-7B-Instruct"
+echo "[3/5] Downloading model cache"
 export HF_HOME="$CACHE_DIR"
+export SERVE_MODEL_ID
 python - << 'PY'
+import os
 from huggingface_hub import snapshot_download
 snapshot_download(
-    "Qwen/Qwen2.5-7B-Instruct",
+    os.environ["SERVE_MODEL_ID"],
     cache_dir="/workspace/.cache/huggingface",
     local_dir_use_symlinks=False,
     revision="main",

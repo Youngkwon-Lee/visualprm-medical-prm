@@ -237,6 +237,7 @@ def generate_steps():
         gold = int(data.get("gold", 0))
         dataset = data.get("dataset", "pathvqa")
         case_type = data.get("case_type", "Medical")
+        image_url = str(data.get("image_url", "")).strip()
         temperature = max(0.0, min(1.3, float(data.get("temperature", 0.7))))
         top_p = max(0.0, min(1.0, float(data.get("top_p", 1.0))))
         prefix_steps = data.get("prefix_steps", [])
@@ -283,10 +284,15 @@ Output ONLY valid JSON:
   "final_answer_index": 0
 }}"""
 
+        user_content: list[dict[str, Any]] = []
+        if image_url:
+            user_content.append({"type": "image_url", "image_url": {"url": image_url}})
+        user_content.append({"type": "text", "text": user_prompt})
+
         result = _chat_json_completion(
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": user_content},
             ],
             model=provider_generate_model(),
             temperature=temperature,
