@@ -1,0 +1,9 @@
+{
+  "source_rows": 100,
+  "kept_rows": 75,
+  "dropped_rows": 25,
+  "train_rows": 67,
+  "val_rows": 8,
+  "train_path": "D:\\visualprm\\runpod_data\\pathvqa_vlm100_sft_train.jsonl",
+  "val_path": "D:\\visualprm\\runpod_data\\pathvqa_vlm100_sft_val.jsonl"
+}
