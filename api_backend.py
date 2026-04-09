@@ -757,13 +757,15 @@ def agent_answer():
                 for idx, doc in enumerate(document_hits)
             )
 
-        if get_provider_client() and MODEL_PROVIDER != "gemini":
+        if get_provider_client():
             try:
                 options_text = "\n".join([f"{chr(65 + i)}. {opt}" for i, opt in enumerate(options)])
                 system_prompt = (
                     "You are a medical multi-agent coordinator. "
-                    "Simulate a pipeline with router, retriever, reasoner, and judge agents. "
-                    "Ground the reasoning in the retrieved support cases and avoid unsupported claims."
+                    "Follow this order: (1) draft concise step reasoning from the case/question, "
+                    "(2) ground/refine the reasoning with retrieved support and document evidence, "
+                    "(3) output final judged answer. "
+                    "Avoid unsupported claims and keep steps clinically coherent."
                 )
                 user_prompt = f"""Question: {question}
 Dataset: {dataset or 'unknown'}
