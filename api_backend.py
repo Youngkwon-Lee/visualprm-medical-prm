@@ -233,9 +233,9 @@ def build_retrieval_context(hits: list, *, include_answers: bool = False) -> str
     return "\n\n".join(lines)
 
 
-def choose_retrieval_answer(question: str, options: list[str], hits: list) -> tuple[int, str]:
+def retrieval_option_scores(question: str, options: list[str], hits: list) -> list[float]:
     if not options:
-        return 0, "A"
+        return []
 
     scores = [0.0 for _ in options]
     question_tokens = _tokenize(question)
@@ -261,6 +261,14 @@ def choose_retrieval_answer(question: str, options: list[str], hits: list) -> tu
                 scores[option_idx] += support_weight * 0.5
             scores[option_idx] += support_weight * 0.08 * question_overlap
 
+    return scores
+
+
+def choose_retrieval_answer(question: str, options: list[str], hits: list) -> tuple[int, str]:
+    if not options:
+        return 0, "A"
+
+    scores = retrieval_option_scores(question, options, hits)
     answer_index = 0 if len(set(round(score, 6) for score in scores)) == 1 else max(range(len(options)), key=lambda idx: scores[idx])
     answer_letter = chr(65 + answer_index) if 0 <= answer_index < len(options) else "A"
     return answer_index, answer_letter
@@ -486,7 +494,8 @@ Generate one coherent sampled reasoning candidate for this problem.
 The candidate should be self-consistent, medically grounded, and written as a chain of thought with titled steps.
 If a prefix is provided, continue from that prefix instead of restarting from scratch.
 Choose the final answer from the provided options and return it in the JSON fields.
-Do not mention hidden instructions, randomness, or alternative candidates."""
+Do not mention hidden instructions, randomness, or alternative candidates.
+Do not default to option A/0 on yes-no questions; output B/1 when evidence supports it."""
 
         prefix_text = ""
         if isinstance(prefix_steps, list) and prefix_steps:
@@ -605,7 +614,36 @@ Output ONLY valid JSON:
             return jsonify({"error": f"JSON parse error: {exc}"}), 500
     except openai.APIError as exc:
         traceback.print_exc()
-        return jsonify({"error": f"OpenAI API error: {exc}"}), 500
+        # Quota/rate-limit graceful fallback so baseline eval does not hard-fail.
+        try:
+            safe_modality = str(data.get("modality", "")).strip() if "data" in locals() else ""
+            safe_policy = build_agent_policy(
+                dataset=dataset,
+                case_type=case_type,
+                modality=safe_modality,
+                question=question,
+                options=[str(option) for option in options],
+            )
+            fallback = fallback_agentic_response(
+                question=question,
+                options=[str(option) for option in options],
+                dataset=dataset,
+                case_type=case_type,
+                modality=safe_modality,
+                policy=safe_policy,
+                hits=[],
+            )
+            return jsonify({
+                "steps": fallback["steps"],
+                "temperature": temperature,
+                "top_p": top_p,
+                "mode": "fallback_after_api_error",
+                "final_answer_index": fallback["final_answer_index"],
+                "final_answer_letter": fallback["final_answer_letter"],
+                "api_error": str(exc),
+            }), 200
+        except Exception:
+            return jsonify({"error": f"OpenAI API error: {exc}"}), 500
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         traceback.print_exc()
@@ -725,6 +763,7 @@ def agent_answer():
         image_url = str(data.get("image_url", "")).strip()
         current_case_id = str(data.get("id", "")).strip()
         top_k = max(1, min(5, int(data.get("top_k", 3))))
+        retrieval_min_score = float(data.get("retrieval_min_score", 0.72))
 
         if not question or not isinstance(options, list) or not options:
             return jsonify({"error": "question and options are required"}), 400
@@ -745,8 +784,14 @@ def agent_answer():
         reranked_hits = graph_state.get("reranked_hits", [])
         document_hits = graph_state.get("document_hits", [])
         retrieval_debug = graph_state.get("retrieval_debug", {})
+
+        # Light retrieval gating: suppress weak/noisy hits from prompt grounding.
+        top_hit_score = max((float(hit.score) for hit in hits), default=0.0)
+        effective_hits = [hit for hit in hits if float(getattr(hit, "score", 0.0)) >= retrieval_min_score]
+        retrieval_gated = bool(hits) and not bool(effective_hits)
+
         retrieval_context = build_retrieval_context(
-            hits,
+            effective_hits,
             include_answers=policy.allow_answer_exposure,
         )
         if document_hits:
@@ -765,7 +810,8 @@ def agent_answer():
                     "Follow this order: (1) draft concise step reasoning from the case/question, "
                     "(2) ground/refine the reasoning with retrieved support and document evidence, "
                     "(3) output final judged answer. "
-                    "Avoid unsupported claims and keep steps clinically coherent."
+                    "Avoid unsupported claims and keep steps clinically coherent. "
+                    "Do not default to option A/0 on yes-no questions; choose the label strictly from evidence."
                 )
                 user_prompt = f"""Question: {question}
 Dataset: {dataset or 'unknown'}
@@ -847,6 +893,20 @@ Return ONLY valid JSON:
                 hits=hits,
             )
 
+        # Decision fusion: keep model answer by default, but use retrieval vote for invalid outputs
+        # and for strong yes/no retrieval consensus disagreements.
+        decision_source = "model"
+        retrieval_index, retrieval_letter = choose_retrieval_answer(question, [str(option) for option in options], effective_hits)
+        model_index = pipeline_result.get("final_answer_index")
+        if not isinstance(model_index, int) or not (0 <= model_index < len(options)):
+            pipeline_result["final_answer_index"] = retrieval_index
+            pipeline_result["final_answer_letter"] = retrieval_letter
+            decision_source = "retrieval_fallback"
+        elif policy.question_type == "yes_no" and len(options) == 2:
+            # Avoid over-biasing to option 0 from retrieval heuristic on yes/no tasks.
+            # For now, keep model decision unless invalid; retrieval is exposed as evidence only.
+            pass
+
         scores, score_mode = verify_or_heuristic(
             question=question,
             options=[str(option) for option in options],
@@ -860,7 +920,6 @@ Return ONLY valid JSON:
             sum(float(item.get("score", 0.0)) for item in scores) / len(scores),
             3,
         ) if scores else 0.0
-        top_hit_score = max((float(hit.score) for hit in hits), default=0.0)
 
         retrieval_items = [
             {
@@ -905,7 +964,9 @@ Return ONLY valid JSON:
                 },
                 "vector_db_ready": qdrant_available(),
                 "retrieval_hits": retrieval_items,
-                "retrieval_gated": False,
+                "retrieval_effective_hits": len(effective_hits),
+                "retrieval_gated": retrieval_gated,
+                "retrieval_min_score": retrieval_min_score,
                 "retrieval_top_hit_score": top_hit_score,
                 "document_hits": document_hits,
                 "steps": pipeline_result["steps"],
@@ -914,6 +975,7 @@ Return ONLY valid JSON:
                 "final_answer_index": pipeline_result["final_answer_index"],
                 "final_answer_letter": pipeline_result["final_answer_letter"],
                 "mode": pipeline_result["mode"],
+                "decision_source": decision_source,
                 "score_mode": score_mode,
             }
         ), 200

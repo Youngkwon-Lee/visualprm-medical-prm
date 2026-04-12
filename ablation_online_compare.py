@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib import request, error
 
 BASE = "http://127.0.0.1:8764"
-ROOT = Path("/mnt/d/visualprm")
+ROOT = Path("D:/visualprm") if Path("D:/visualprm").exists() else Path("/mnt/d/visualprm")
 
 
 def load_rows(path: Path, dataset: str, n: int):
@@ -59,6 +59,7 @@ def run_case(item: dict):
         sc, res = post_json("/generate-steps", payload)
         out["baseline_latency"] = round(time.time() - t0, 3)
         if sc == 200 and isinstance(res.get("final_answer_index"), int):
+            out["baseline_pred"] = int(res["final_answer_index"])
             out["baseline_ok"] = int(res["final_answer_index"] == item["gold"])
         else:
             out["baseline_ok"] = None
@@ -78,9 +79,13 @@ def run_case(item: dict):
         sc, res = post_json("/agent-answer", payload)
         out["rag_latency"] = round(time.time() - t0, 3)
         if sc == 200 and isinstance(res.get("final_answer_index"), int):
+            out["rag_pred"] = int(res["final_answer_index"])
             out["rag_ok"] = int(res["final_answer_index"] == item["gold"])
             out["retrieval_mode"] = res.get("retrieval_mode", "")
             out["specialist"] = (res.get("router") or {}).get("specialist", "")
+            out["decision_source"] = res.get("decision_source", "")
+            out["retrieval_gated"] = bool(res.get("retrieval_gated", False))
+            out["retrieval_top_hit_score"] = res.get("retrieval_top_hit_score")
         else:
             out["rag_ok"] = None
             out["rag_error"] = res.get("error", f"status={sc}")
@@ -102,11 +107,20 @@ def mean(xs):
 
 
 def main():
-    testset = load_rows(ROOT / "vqarad_for_app.json", "vqarad", 10) + load_rows(ROOT / "pathvqa_for_app.json", "pathvqa", 10)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n-each", type=int, default=10, help="Samples per dataset (vqarad + pathvqa)")
+    args = parser.parse_args()
+
+    n_each = max(1, int(args.n_each))
+    testset = load_rows(ROOT / "vqarad_for_app.json", "vqarad", n_each) + load_rows(ROOT / "pathvqa_for_app.json", "pathvqa", n_each)
     results = [run_case(item) for item in testset]
 
     b_ok = [r.get("baseline_ok") for r in results if r.get("baseline_ok") is not None]
     r_ok = [r.get("rag_ok") for r in results if r.get("rag_ok") is not None]
+
+    baseline_preds = [r.get("baseline_pred") for r in results if isinstance(r.get("baseline_pred"), int)]
+    rag_preds = [r.get("rag_pred") for r in results if isinstance(r.get("rag_pred"), int)]
 
     summary = {
         "n_total": len(testset),
@@ -118,6 +132,20 @@ def main():
         "rag_avg_latency": mean([r.get("rag_latency") for r in results]),
         "baseline_errors": sum(1 for r in results if r.get("baseline_ok") is None),
         "rag_errors": sum(1 for r in results if r.get("rag_ok") is None),
+        "baseline_pred_dist": {
+            "0": sum(1 for x in baseline_preds if x == 0),
+            "1": sum(1 for x in baseline_preds if x == 1),
+        },
+        "rag_pred_dist": {
+            "0": sum(1 for x in rag_preds if x == 0),
+            "1": sum(1 for x in rag_preds if x == 1),
+        },
+    }
+
+    summary["datasets"] = {
+        "vqarad_file": "vqarad_for_app.json",
+        "pathvqa_file": "pathvqa_for_app.json",
+        "n_each": n_each,
     }
 
     out = {"summary": summary, "results": results}
