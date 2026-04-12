@@ -110,3 +110,13 @@ VisualPRM thread에서 수행한 Gemini / RAG / PRM-selection 관련 실험 및 
   2) RAG-Gym 학습/평가 루프 어댑터 구성 및 E2E 평가 경로 정리
   3) visual-grounded RAG(이미지→요약/OCR→검색) 반영 설계/구현
 - 운영 원칙: 단계별 기록 + 단계별 커밋 + 즉시 공유
+
+### Progress Update (PRM real integration track)
+- `api_backend.py`에 PRM provider 훅 추가:
+  - `PRM_PROVIDER=surrogate|http`
+  - `PRM_HTTP_ENDPOINT`, `PRM_HTTP_TIMEOUT_SEC`
+- `selection_mode=prm`일 때 candidate별 점수를 HTTP PRM으로 조회 가능
+- HTTP 실패/미설정 시 surrogate 점수로 안전 fallback
+- 응답 로깅 확장:
+  - `prm_provider`, `prm_http_endpoint`
+  - `candidate_scores[].surrogate_score/prm_confidence/prm_error`

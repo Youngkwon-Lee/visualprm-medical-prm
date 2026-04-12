@@ -108,6 +108,61 @@ def provider_ready() -> bool:
     return get_provider_client() is not None
 
 
+def prm_provider_name() -> str:
+    return os.getenv("PRM_PROVIDER", "surrogate").strip().lower()
+
+
+def prm_http_endpoint() -> str:
+    return os.getenv("PRM_HTTP_ENDPOINT", "").strip()
+
+
+def prm_http_timeout_sec() -> float:
+    try:
+        return max(1.0, float(os.getenv("PRM_HTTP_TIMEOUT_SEC", "15")))
+    except Exception:
+        return 15.0
+
+
+def score_candidate_with_prm_http(*, question: str, options: list[str], retrieval_context: str, candidate: dict, dataset: str, case_type: str, modality: str) -> tuple[float | None, float | None, str | None]:
+    endpoint = prm_http_endpoint()
+    if not endpoint:
+        return None, None, "missing_prm_http_endpoint"
+
+    try:
+        import urllib.request
+
+        payload = {
+            "question": question,
+            "options": options,
+            "retrieval_context": retrieval_context,
+            "candidate": {
+                "final_answer_index": candidate.get("final_answer_index"),
+                "final_answer_letter": candidate.get("final_answer_letter"),
+                "steps": candidate.get("steps", []),
+            },
+            "meta": {
+                "dataset": dataset,
+                "case_type": case_type,
+                "modality": modality,
+            },
+        }
+        req = urllib.request.Request(
+            endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=prm_http_timeout_sec()) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+            score = body.get("score")
+            confidence = body.get("confidence")
+            if score is None:
+                return None, None, "prm_http_missing_score"
+            return float(score), (float(confidence) if confidence is not None else None), None
+    except Exception as exc:
+        return None, None, f"prm_http_error:{exc}"
+
+
 def _parse_json_text(text: str) -> dict:
     text = (text or "").strip()
     if text.startswith("```"):
@@ -917,11 +972,34 @@ Return ONLY valid JSON:
             )
             avg_step = (sum(float(item.get("score", 0.0)) for item in step_scores) / len(step_scores)) if step_scores else 0.0
             align_bonus = 0.12 if idx == retrieval_index else (-0.05 if top_hit_score >= retrieval_min_score else 0.0)
-            prm_score = round(avg_step + align_bonus, 4)
+            surrogate_score = round(avg_step + align_bonus, 4)
+
+            prm_score = surrogate_score
+            prm_confidence = None
+            prm_error = None
+            if selection_mode == "prm" and prm_provider_name() == "http":
+                http_score, http_conf, http_err = score_candidate_with_prm_http(
+                    question=question,
+                    options=[str(option) for option in options],
+                    retrieval_context=retrieval_context,
+                    candidate=cand,
+                    dataset=dataset,
+                    case_type=case_type,
+                    modality=modality,
+                )
+                if http_score is not None:
+                    prm_score = round(float(http_score), 4)
+                    prm_confidence = http_conf
+                else:
+                    prm_error = http_err
+
             scored_candidates.append({
                 "candidate": cand,
                 "prm_score": prm_score,
                 "avg_step_score": round(avg_step, 4),
+                "surrogate_score": surrogate_score,
+                "prm_confidence": prm_confidence,
+                "prm_error": prm_error,
             })
 
         # Diversity-aware penalty: if all candidates collapse to one option, reduce that option score slightly.
@@ -1035,10 +1113,15 @@ Return ONLY valid JSON:
                         "answer_index": item["candidate"].get("final_answer_index"),
                         "answer_letter": item["candidate"].get("final_answer_letter"),
                         "prm_score": item["prm_score"],
+                        "surrogate_score": item.get("surrogate_score"),
+                        "prm_confidence": item.get("prm_confidence"),
+                        "prm_error": item.get("prm_error"),
                         "avg_step_score": item["avg_step_score"],
                     }
                     for item in scored_candidates
                 ],
+                "prm_provider": prm_provider_name(),
+                "prm_http_endpoint": prm_http_endpoint() if prm_provider_name() == "http" else "",
                 "score_mode": score_mode,
             }
         ), 200
