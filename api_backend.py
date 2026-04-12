@@ -897,6 +897,7 @@ Return ONLY valid JSON:
 
         retrieval_index, retrieval_letter = choose_retrieval_answer(question, [str(option) for option in options], effective_hits)
         scored_candidates: list[dict[str, Any]] = []
+        option_counts: dict[int, int] = {}
         for cand in candidate_pool:
             idx = cand.get("final_answer_index")
             valid = isinstance(idx, int) and 0 <= idx < len(options)
@@ -904,6 +905,8 @@ Return ONLY valid JSON:
                 idx = retrieval_index
                 cand["final_answer_index"] = idx
                 cand["final_answer_letter"] = retrieval_letter
+            option_counts[idx] = option_counts.get(idx, 0) + 1
+
             step_scores, _ = verify_or_heuristic(
                 question=question,
                 options=[str(option) for option in options],
@@ -921,8 +924,27 @@ Return ONLY valid JSON:
                 "avg_step_score": round(avg_step, 4),
             })
 
+        # Diversity-aware penalty: if all candidates collapse to one option, reduce that option score slightly.
+        if option_counts:
+            majority_idx = max(option_counts, key=lambda k: option_counts[k])
+            collapse_ratio = option_counts[majority_idx] / max(1, len(scored_candidates))
+            if collapse_ratio >= 0.8:
+                for item in scored_candidates:
+                    if item["candidate"].get("final_answer_index") == majority_idx:
+                        item["prm_score"] = round(item["prm_score"] - 0.06, 4)
+
         if selection_mode == "prm":
-            picked = max(scored_candidates, key=lambda x: x["prm_score"])
+            scored_candidates.sort(key=lambda x: x["prm_score"], reverse=True)
+            picked = scored_candidates[0]
+            # yes/no calibration: if retrieval strongly supports the opposite class, prefer best opposite candidate.
+            if policy.question_type == "yes_no" and len(options) == 2 and top_hit_score >= retrieval_min_score:
+                top_idx = picked["candidate"].get("final_answer_index")
+                if isinstance(top_idx, int) and top_idx != retrieval_index:
+                    for alt in scored_candidates[1:]:
+                        if alt["candidate"].get("final_answer_index") == retrieval_index:
+                            if (picked["prm_score"] - alt["prm_score"]) <= 0.08:
+                                picked = alt
+                                break
             pipeline_result = picked["candidate"]
             decision_source = "prm_select"
         else:
