@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VisualPRM Full Report Deck (v2)</title>
+  <style>
+    :root{--bg:#f4f7fb;--ink:#0f172a;--muted:#5b6475;--line:#d7deea;--card:#fff}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:Inter,Segoe UI,Apple SD Gothic Neo,Noto Sans KR,sans-serif;color:var(--ink)}
+    .deck{width:min(1280px,96vw);margin:20px auto;display:grid;gap:20px}
+    .slide{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 28px rgba(15,23,42,.08);padding:34px;min-height:720px;position:relative;overflow:hidden}
+    .kicker{font-size:14px;font-weight:700;letter-spacing:.08em;color:#2563eb;text-transform:uppercase}
+    .title{margin:10px 0 0;font-size:44px;line-height:1.15;letter-spacing:-.02em}
+    .subtitle{margin:14px 0 0;color:var(--muted);font-size:22px}
+    .brand{position:absolute;right:30px;bottom:22px;font-size:14px;color:#64748b}
+    .s2-head h2{margin:8px 0 0;font-size:34px;line-height:1.2}
+    .s2-head p{margin:10px 0 0;color:var(--muted);font-size:18px}
+    .cards{margin-top:20px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .card{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--card);min-height:210px}
+    .card h3{margin:0 0 8px;font-size:18px}
+    .card ul{margin:0;padding-left:18px}
+    .card li{font-size:14px;margin:5px 0;color:#243046}
+    .badge{display:inline-block;font-size:11px;font-weight:700;padding:4px 8px;border-radius:999px;margin-bottom:8px}
+    .b1{background:#dbeafe;color:#1d4ed8}.b2{background:#dcfce7;color:#166534}.b3{background:#ede9fe;color:#6d28d9}
+    .b4{background:#fef3c7;color:#92400e}.b5{background:#e0f2fe;color:#0369a1}.b6{background:#fee2e2;color:#b91c1c}
+    table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
+    th,td{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    @media(max-width:980px){.cards{grid-template-columns:1fr 1fr}.title{font-size:36px}}
+    @media(max-width:680px){.cards{grid-template-columns:1fr}.slide{min-height:auto}}
+  </style>
+</head>
+<body>
+  <div class="deck">
+
+    <section class="slide">
+      <div class="kicker">VisualPRM Experiment Timeline</div>
+      <h1 class="title">전체 실험 기록 (처음부터 현재까지)</h1>
+      <p class="subtitle">2026-04-12 스레드 기준 Full Report · 읽기 쉬운 v2 Deck</p>
+      <div class="brand">Team / Name: Youngkwon · Jarvis</div>
+    </section>
+
+    <section class="slide">
+      <div class="s2-head">
+        <div class="kicker">Summary</div>
+        <h2>핵심 변화 6가지</h2>
+        <p>안정성은 개선됐고, 정확도/편향 개선은 실제 PRM 모델 연결이 남아있다.</p>
+      </div>
+      <div class="cards">
+        <article class="card"><span class="badge b1">FIX</span><h3>Baseline 복구</h3><ul><li><code>/generate-steps</code> 500 → fallback 200</li><li>429 quota 상황에서도 실험 지속</li><li>공정 비교 가능 상태 복원</li></ul></article>
+        <article class="card"><span class="badge b2">RAG</span><h3>Retrieval 게이팅</h3><ul><li><code>retrieval_min_score</code> 도입</li><li>약한 hit 차단</li><li>debug 필드 확장</li></ul></article>
+        <article class="card"><span class="badge b3">PRM</span><h3>BoN + 선택모드</h3><ul><li><code>bon_n</code>, <code>selection_mode</code> 추가</li><li>후보 N개 생성</li><li><code>prm_select</code> 동작 검증</li></ul></article>
+        <article class="card"><span class="badge b4">CALIB</span><h3>편향 보정 룰</h3><ul><li>diversity penalty</li><li>yes/no retrieval calibration</li><li>surrogate PRM 한계 확인</li></ul></article>
+        <article class="card"><span class="badge b5">RESULT</span><h3>수치 결과</h3><ul><li>20샘플: baseline 0.50 vs rag 0.50</li><li>10샘플 PRM compare: 모두 0.50</li><li>pred 분포 0쪽 붕괴 유지</li></ul></article>
+        <article class="card"><span class="badge b6">NEXT</span><h3>다음 단계</h3><ul><li>팀원 PRM API 스펙 확정</li><li>surrogate → real PRM 교체</li><li>동일 샘플 A/B 재검증</li></ul></article>
+      </div>
+      <div class="brand">Source: EXPERIMENT_LOG_2026-04-12.md</div>
+    </section>
+
+    <section class="slide">
+      <div class="s2-head">
+        <div class="kicker">Timeline</div>
+        <h2>실험 타임라인 (처음부터)</h2>
+        <p>실패/재실행 포함 전체 흐름</p>
+      </div>
+      <table>
+        <tr><th>구간</th><th>실험</th><th>핵심 결과</th><th>비고</th></tr>
+        <tr><td>A</td><td>RAG vs baseline (20)</td><td>baseline 0/20 실패, rag 20/20 acc 0.5</td><td>원인: generate-steps 500(429 전파)</td></tr>
+        <tr><td>B</td><td>스모크 (2)</td><td>baseline/rag 모두 acc 1.0, error 0</td><td>fallback 복구 확인</td></tr>
+        <tr><td>C</td><td>RAG vs baseline (20)</td><td>baseline 0.5, rag 0.5, error 0/0</td><td>pred 모두 0쪽 쏠림</td></tr>
+        <tr><td>D</td><td>RAG vs baseline (10)</td><td>baseline 0.5, rag 0.5</td><td>동일 패턴 재확인</td></tr>
+        <tr><td>E</td><td>pathvqa-only 5</td><td>acc null</td><td>connection refused (제외)</td></tr>
+        <tr><td>F-1</td><td>PRM compare (10)</td><td>baseline/rag_model/rag_prm 모두 0.5</td><td>prm_select 10/10 동작</td></tr>
+        <tr><td>F-2</td><td>보정룰 후 PRM compare</td><td>수치 변화 없음</td><td>surrogate PRM 한계</td></tr>
+      </table>
+      <div class="brand">유효 결과 파일: ablation_online_rag_vs_baseline.json · ablation_online_prm_mode_compare_10.json</div>
+    </section>
+
+    <section class="slide">
+      <div class="s2-head">
+        <div class="kicker">Commits</div>
+        <h2>코드 변경 이력</h2>
+        <p>이번 실험 사이클에서 반영된 핵심 커밋</p>
+      </div>
+      <table>
+        <tr><th>커밋</th><th>핵심 변경</th></tr>
+        <tr><td class="mono">f60da14</td><td>APIError fallback(500→200), retrieval gating, pred 분포 지표 추가</td></tr>
+        <tr><td class="mono">a6b2ffb</td><td>BoN 후보생성 + <code>selection_mode=model|prm</code> + candidate score 로깅</td></tr>
+        <tr><td class="mono">bc579be</td><td>diversity penalty + yes/no retrieval calibration</td></tr>
+        <tr><td class="mono">177d926</td><td>전체 실험 로그 문서화(MD)</td></tr>
+        <tr><td class="mono">f984f54</td><td>상태 리포트 HTML(요약형) 생성</td></tr>
+        <tr><td class="mono">2559fa3</td><td>v2 deck 스타일 리포트 생성</td></tr>
+      </table>
+      <div class="brand">현재 결론: retrieval보다 final selection 병목</div>
+    </section>
+
+    <section class="slide">
+      <div class="s2-head">
+        <div class="kicker">Action Plan</div>
+        <h2>다음 실행 계획 (Locked)</h2>
+        <p>실제 팀원 PRM 연결 기준</p>
+      </div>
+      <div class="cards">
+        <article class="card"><span class="badge b1">INPUT</span><h3>필수 입력 스펙</h3><ul><li>question</li><li>options</li><li>retrieval_context</li><li>candidate_steps</li></ul></article>
+        <article class="card"><span class="badge b2">OUTPUT</span><h3>필수 출력 스펙</h3><ul><li>candidate별 score</li><li>선택된 후보 index(선택)</li><li>confidence(선택)</li></ul></article>
+        <article class="card"><span class="badge b3">INTEGRATION</span><h3>교체 포인트</h3><ul><li>surrogate prm_score 부분</li><li>API timeout/retry/fallback</li><li>response schema validate</li></ul></article>
+        <article class="card"><span class="badge b4">EVAL</span><h3>재실험</h3><ul><li>10샘플 스모크</li><li>20샘플 본실험</li><li>같은 샘플셋 고정</li></ul></article>
+        <article class="card"><span class="badge b5">METRICS</span><h3>비교 지표</h3><ul><li>accuracy</li><li>latency</li><li>error rate</li><li>pred_dist / decision_source</li></ul></article>
+        <article class="card"><span class="badge b6">GOAL</span><h3>성공 기준</h3><ul><li>0-class collapse 완화</li><li>rag_prm_real > rag_model</li><li>에러율 유지(0 또는 근접)</li></ul></article>
+      </div>
+      <div class="brand">Team / Name: Youngkwon · Jarvis</div>
+    </section>
+
+  </div>
+</body>
+</html>
