@@ -764,6 +764,8 @@ def agent_answer():
         current_case_id = str(data.get("id", "")).strip()
         top_k = max(1, min(5, int(data.get("top_k", 3))))
         retrieval_min_score = float(data.get("retrieval_min_score", 0.72))
+        bon_n = max(1, min(5, int(data.get("bon_n", 1))))
+        selection_mode = str(data.get("selection_mode", "model")).strip().lower()
 
         if not question or not isinstance(options, list) or not options:
             return jsonify({"error": "question and options are required"}), 400
@@ -802,6 +804,7 @@ def agent_answer():
                 for idx, doc in enumerate(document_hits)
             )
 
+        candidate_pool: list[dict[str, Any]] = []
         if get_provider_client():
             try:
                 options_text = "\n".join([f"{chr(65 + i)}. {opt}" for i, opt in enumerate(options)])
@@ -841,39 +844,47 @@ Return ONLY valid JSON:
                 if image_url:
                     user_content.append({"type": "image_url", "image_url": {"url": image_url}})
                 user_content.append({"type": "text", "text": user_prompt})
-                result = _chat_json_completion(
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_content},
-                    ],
-                    model=provider_generate_model(),
-                    temperature=0.3,
-                    top_p=0.9,
-                    max_tokens=1000,
-                    timeout=30,
-                )
-                steps = result.get("steps", [])
-                normalized_steps = [
-                    {
-                        "title": step.get("title") or f"Step {idx+1}",
-                        "text": step.get("text") or "",
-                    }
-                    for idx, step in enumerate(steps)
-                ]
-                answer_index = result.get("final_answer_index")
-                answer_letter = result.get("final_answer_letter")
-                if answer_index is None and isinstance(answer_letter, str):
-                    answer_index = max(0, "ABCD".find(answer_letter.strip().upper()))
-                if answer_letter is None and isinstance(answer_index, int) and 0 <= answer_index < len(options):
-                    answer_letter = chr(65 + answer_index)
-                pipeline_result = {
-                    "steps": normalized_steps,
-                    "final_answer_index": answer_index,
-                    "final_answer_letter": answer_letter,
-                    "mode": MODEL_PROVIDER,
-                }
+
+                for i in range(bon_n):
+                    t = min(1.0, 0.25 + 0.15 * i)
+                    result = _chat_json_completion(
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_content},
+                        ],
+                        model=provider_generate_model(),
+                        temperature=t,
+                        top_p=0.9,
+                        max_tokens=1000,
+                        timeout=30,
+                    )
+                    steps = result.get("steps", [])
+                    normalized_steps = [
+                        {
+                            "title": step.get("title") or f"Step {idx+1}",
+                            "text": step.get("text") or "",
+                        }
+                        for idx, step in enumerate(steps)
+                    ]
+                    answer_index = result.get("final_answer_index")
+                    answer_letter = result.get("final_answer_letter")
+                    if answer_index is None and isinstance(answer_letter, str):
+                        answer_index = max(0, "ABCD".find(answer_letter.strip().upper()))
+                    if answer_letter is None and isinstance(answer_index, int) and 0 <= answer_index < len(options):
+                        answer_letter = chr(65 + answer_index)
+                    candidate_pool.append({
+                        "steps": normalized_steps,
+                        "final_answer_index": answer_index,
+                        "final_answer_letter": answer_letter,
+                        "mode": MODEL_PROVIDER,
+                        "candidate_temperature": t,
+                    })
             except Exception:
-                pipeline_result = fallback_agentic_response(
+                candidate_pool = []
+
+        if not candidate_pool:
+            candidate_pool = [
+                fallback_agentic_response(
                     question=question,
                     options=[str(option) for option in options],
                     dataset=dataset,
@@ -882,30 +893,48 @@ Return ONLY valid JSON:
                     policy=policy,
                     hits=hits,
                 )
-        else:
-            pipeline_result = fallback_agentic_response(
+            ]
+
+        retrieval_index, retrieval_letter = choose_retrieval_answer(question, [str(option) for option in options], effective_hits)
+        scored_candidates: list[dict[str, Any]] = []
+        for cand in candidate_pool:
+            idx = cand.get("final_answer_index")
+            valid = isinstance(idx, int) and 0 <= idx < len(options)
+            if not valid:
+                idx = retrieval_index
+                cand["final_answer_index"] = idx
+                cand["final_answer_letter"] = retrieval_letter
+            step_scores, _ = verify_or_heuristic(
                 question=question,
                 options=[str(option) for option in options],
-                dataset=dataset,
+                gold=gold,
                 case_type=case_type,
                 modality=modality,
-                policy=policy,
-                hits=hits,
+                steps=cand.get("steps", []),
             )
+            avg_step = (sum(float(item.get("score", 0.0)) for item in step_scores) / len(step_scores)) if step_scores else 0.0
+            align_bonus = 0.12 if idx == retrieval_index else (-0.05 if top_hit_score >= retrieval_min_score else 0.0)
+            prm_score = round(avg_step + align_bonus, 4)
+            scored_candidates.append({
+                "candidate": cand,
+                "prm_score": prm_score,
+                "avg_step_score": round(avg_step, 4),
+            })
 
-        # Decision fusion: keep model answer by default, but use retrieval vote for invalid outputs
-        # and for strong yes/no retrieval consensus disagreements.
-        decision_source = "model"
-        retrieval_index, retrieval_letter = choose_retrieval_answer(question, [str(option) for option in options], effective_hits)
-        model_index = pipeline_result.get("final_answer_index")
-        if not isinstance(model_index, int) or not (0 <= model_index < len(options)):
-            pipeline_result["final_answer_index"] = retrieval_index
-            pipeline_result["final_answer_letter"] = retrieval_letter
-            decision_source = "retrieval_fallback"
-        elif policy.question_type == "yes_no" and len(options) == 2:
-            # Avoid over-biasing to option 0 from retrieval heuristic on yes/no tasks.
-            # For now, keep model decision unless invalid; retrieval is exposed as evidence only.
-            pass
+        if selection_mode == "prm":
+            picked = max(scored_candidates, key=lambda x: x["prm_score"])
+            pipeline_result = picked["candidate"]
+            decision_source = "prm_select"
+        else:
+            pipeline_result = scored_candidates[0]["candidate"]
+            decision_source = "model"
+
+        if selection_mode != "prm":
+            model_index = pipeline_result.get("final_answer_index")
+            if not isinstance(model_index, int) or not (0 <= model_index < len(options)):
+                pipeline_result["final_answer_index"] = retrieval_index
+                pipeline_result["final_answer_letter"] = retrieval_letter
+                decision_source = "retrieval_fallback"
 
         scores, score_mode = verify_or_heuristic(
             question=question,
@@ -976,6 +1005,18 @@ Return ONLY valid JSON:
                 "final_answer_letter": pipeline_result["final_answer_letter"],
                 "mode": pipeline_result["mode"],
                 "decision_source": decision_source,
+                "selection_mode": selection_mode,
+                "bon_n": bon_n,
+                "candidate_count": len(scored_candidates),
+                "candidate_scores": [
+                    {
+                        "answer_index": item["candidate"].get("final_answer_index"),
+                        "answer_letter": item["candidate"].get("final_answer_letter"),
+                        "prm_score": item["prm_score"],
+                        "avg_step_score": item["avg_step_score"],
+                    }
+                    for item in scored_candidates
+                ],
                 "score_mode": score_mode,
             }
         ), 200
