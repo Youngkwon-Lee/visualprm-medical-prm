@@ -103,3 +103,10 @@ VisualPRM thread에서 수행한 Gemini / RAG / PRM-selection 관련 실험 및 
    - rag_model vs rag_prm_real
 4. 비교 지표
    - acc / latency / error / pred_dist / decision_source
+
+## Execution Kickoff (2026-04-12 19:51 KST)
+- 사용자 요청에 따라 아래 3개 트랙을 병렬 진행 시작:
+  1) 팀원 실제 PRM 모델 연결 인터페이스 구현
+  2) RAG-Gym 학습/평가 루프 어댑터 구성 및 E2E 평가 경로 정리
+  3) visual-grounded RAG(이미지→요약/OCR→검색) 반영 설계/구현
+- 운영 원칙: 단계별 기록 + 단계별 커밋 + 즉시 공유
