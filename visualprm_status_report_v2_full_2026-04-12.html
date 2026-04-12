@@ -90,6 +90,9 @@
         <tr><td class="mono">a6b2ffb</td><td>BoN 후보생성 + <code>selection_mode=model|prm</code> + candidate score 로깅</td></tr>
         <tr><td class="mono">bc579be</td><td>diversity penalty + yes/no retrieval calibration</td></tr>
         <tr><td class="mono">177d926</td><td>전체 실험 로그 문서화(MD)</td></tr>
+        <tr><td class="mono">51450e4</td><td>3개 병렬 트랙(PRM real/RAG-Gym/visual-grounded) 착수 로그</td></tr>
+        <tr><td class="mono">b54fc6d</td><td>PRM 연동 스펙 + visual-grounded RAG 단계 계획 문서 추가</td></tr>
+        <tr><td class="mono">fa51865</td><td>HTTP PRM provider 훅 + fallback + 실연결 평가 스크립트 추가</td></tr>
         <tr><td class="mono">f984f54</td><td>상태 리포트 HTML(요약형) 생성</td></tr>
         <tr><td class="mono">2559fa3</td><td>v2 deck 스타일 리포트 생성</td></tr>
       </table>
@@ -108,7 +111,7 @@
         <article class="card"><span class="badge b3">DONE</span><h3>텍스트 기반 RAG 반복 실험</h3><ul><li>20/10 샘플 비교 실행</li><li>baseline vs rag vs rag_prm 비교</li><li>에러 0 복구 상태 확인</li></ul></article>
         <article class="card"><span class="badge b4">DONE</span><h3>임베딩 후보 비교 진행</h3><ul><li>bge-small</li><li>S-PubMedBert</li><li>pubmedbert / BioLinkBERT</li></ul></article>
         <article class="card"><span class="badge b5">NOTE</span><h3>현재 결론</h3><ul><li>retrieval은 동작</li><li>선택기 병목(0-class collapse)</li><li>surrogate PRM 한계</li></ul></article>
-        <article class="card"><span class="badge b6">NEXT</span><h3>남은 1단계</h3><ul><li>팀원 실 PRM 연결</li><li>same-set 재평가</li><li>편향 완화 확인</li></ul></article>
+        <article class="card"><span class="badge b6">UPDATE</span><h3>방금 반영</h3><ul><li>HTTP PRM provider 훅 구현</li><li>실패 시 surrogate fallback</li><li><code>run_eval_prm_real.ps1</code> 추가</li></ul></article>
       </div>
       <div class="brand">Requested by thread review (임유석 선생님 피드백 포함)</div>
     </section>
