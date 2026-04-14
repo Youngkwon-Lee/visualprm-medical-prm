@@ -16,14 +16,14 @@
   </defs>
 
   <text x="60" y="60" class="t h">VisualPRM Evaluation Flow (2026-04-14)</text>
-  <text x="60" y="90" class="t s">Baseline → RAG → RAG+PRM 비교 + 진단(오류분해/후보다양성)</text>
+  <text x="60" y="90" class="t s">Baseline(임시 Gemini) → RAG → RAG+PRM(구조 유지, 추후 Qwen-VL+real PRM 전환)</text>
 
   <rect x="50" y="120" width="1300" height="200" class="lane"/>
-  <text x="70" y="155" class="t b">1) Baseline (Gemini only)</text>
+  <text x="70" y="155" class="t b">1) Baseline (현재: Gemini 임시)</text>
   <rect x="80" y="180" width="220" height="95" class="box"/>
   <text x="95" y="215" class="t n">Input</text><text x="95" y="238" class="t n">question + options</text>
   <rect x="350" y="180" width="260" height="95" class="box"/>
-  <text x="365" y="215" class="t n">/generate-steps</text><text x="365" y="238" class="t n">Gemini step reasoning</text>
+  <text x="365" y="215" class="t n">질문/선택지(+이미지)</text><text x="365" y="238" class="t n">Gemini 단독 추론</text>
   <rect x="670" y="180" width="240" height="95" class="box"/>
   <text x="685" y="215" class="t n">Final Answer</text><text x="685" y="238" class="t n">(baseline_pred)</text>
   <rect x="970" y="180" width="340" height="95" class="box"/>
@@ -52,7 +52,7 @@
   <line x1="1080" y1="468" x2="1130" y2="468" class="a"/>
 
   <rect x="50" y="600" width="1300" height="210" class="lane"/>
-  <text x="70" y="635" class="t b">3) RAG + PRM Pipeline</text>
+  <text x="70" y="635" class="t b">3) RAG + PRM (앞단 RAG 동일, 마지막 선택만 PRM)</text>
   <rect x="80" y="660" width="220" height="100" class="box"/>
   <text x="95" y="695" class="t n">RAG context</text>
   <text x="95" y="718" class="t n">+ question/options</text>
@@ -61,7 +61,7 @@
   <text x="365" y="718" class="t n">(bon_n)</text>
   <rect x="640" y="660" width="250" height="100" class="box"/>
   <text x="655" y="695" class="t n">PRM scoring</text>
-  <text x="655" y="718" class="t n">(surrogate / http PRM)</text>
+  <text x="655" y="718" class="t n">(현재 surrogate, 추후 real PRM)</text>
   <rect x="940" y="660" width="220" height="100" class="box"/>
   <text x="955" y="695" class="t n">Select best</text>
   <text x="955" y="718" class="t n">(prm_select)</text>
@@ -72,5 +72,5 @@
   <line x1="890" y1="710" x2="940" y2="710" class="a"/>
   <line x1="1160" y1="710" x2="1210" y2="710" class="a"/>
 
-  <text x="980" y="804" class="t s">Diagnostic finding: candidate diversity collapse (all candidates=0)</text>
+  <text x="890" y="804" class="t s">현재 진단: 후보 다양성 붕괴(all candidates=0) / 전환 계획: Qwen-VL + real PRM</text>
 </svg>
