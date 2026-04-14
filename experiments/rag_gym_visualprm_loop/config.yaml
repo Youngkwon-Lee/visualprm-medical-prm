@@ -1,0 +1,27 @@
+experiment:
+  name: rag_gym_visualprm_loop_v2
+  seed: 42
+
+backend:
+  base_url: http://127.0.0.1:5050
+  timeout_sec: 45
+
+data:
+  input_path: /mnt/d/visualprm/pathvqa_test_for_app.json
+  max_samples: 20
+  image_url_prefix: ""  # 예: http://100.125.26.99:8766/visualprm/
+
+loop:
+  max_iter: 3
+  num_actions: 5
+  temperature: 0.8
+  top_p: 1.0
+  stop_if_answer: true
+  early_stop_same_answer_rounds: 2
+
+critic:
+  mode: verify_steps   # verify_steps | random
+
+output:
+  dir: /mnt/d/visualprm/experiments/rag_gym_visualprm_loop/outputs
+  save_candidates: true
