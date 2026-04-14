@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VisualPRM Data Flow Diagram</title>
+  <style>
+    body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; margin: 24px; color:#111; }
+    h1 { margin: 0 0 8px; }
+    .muted { color:#555; margin-bottom: 18px; }
+    .grid { display:grid; grid-template-columns: repeat(3, minmax(220px,1fr)); gap:14px; align-items:stretch; }
+    .box { border:1px solid #d9d9d9; border-radius:12px; padding:12px; background:#fff; }
+    .title { font-weight:700; margin-bottom:6px; }
+    .arrow { text-align:center; font-size:24px; color:#666; align-self:center; }
+    .row { display:grid; grid-template-columns: 1fr 60px 1fr 60px 1fr; gap:8px; margin-bottom: 8px; }
+    code { background:#f4f4f4; padding:2px 6px; border-radius:6px; }
+    ul { margin:8px 0 0 18px; }
+    .note { margin-top:14px; padding:10px; border-left:4px solid #3b82f6; background:#f8fbff; }
+  </style>
+</head>
+<body>
+  <h1>VisualPRM 데이터 흐름 도식 (현재 운영 기준)</h1>
+  <div class="muted">기준일: 2026-04-09 · 텍스트+RAG 경로 중심 + VLM 경로(쿼터 이슈 포함)</div>
+
+  <h2>1) 사용자 화면에서 답이 보이기까지</h2>
+  <div class="row">
+    <div class="box">
+      <div class="title">① Frontend (app.html/app.js)</div>
+      사용자가 문제/옵션 선택<br>
+      + (선택) image_url 전달
+    </div>
+    <div class="arrow">→</div>
+    <div class="box">
+      <div class="title">② API Backend</div>
+      <code>/agent-answer</code> 또는 <code>/generate-steps</code> 요청 수신
+    </div>
+    <div class="arrow">→</div>
+    <div class="box">
+      <div class="title">③ 응답 렌더링</div>
+      최종 답/근거/step trace를 UI에 표시
+    </div>
+  </div>
+
+  <h2>2) /agent-answer 내부 파이프라인 (현재 정상)</h2>
+  <div class="row">
+    <div class="box">
+      <div class="title">Route</div>
+      정책 생성 (dataset/case_type/question_type)<br>
+      specialist 선택
+    </div>
+    <div class="arrow">→</div>
+    <div class="box">
+      <div class="title">Retrieve + Rerank</div>
+      qdrant(memory) 검색 → reranker 정렬<br>
+      + document RAG hits 결합
+    </div>
+    <div class="arrow">→</div>
+    <div class="box">
+      <div class="title">Reason + Judge</div>
+      steps 생성/검증, final_answer_index 생성<br>
+      retrieval/document 근거 포함 반환
+    </div>
+  </div>
+
+  <h2>3) /generate-steps 경로 (VLM 생성)</h2>
+  <div class="row">
+    <div class="box">
+      <div class="title">입력</div>
+      question + options + (image_url/data URL)
+    </div>
+    <div class="arrow">→</div>
+    <div class="box">
+      <div class="title">Provider 호출</div>
+      Gemini/OpenAI 멀티모달 생성 호출
+    </div>
+    <div class="arrow">→</div>
+    <div class="box">
+      <div class="title">현재 상태</div>
+      429 quota/cap으로 차단<br>
+      (생성 경로 일시 불가)
+    </div>
+  </div>
+
+  <h2>4) 데이터 소스 맵</h2>
+  <div class="grid">
+    <div class="box"><div class="title">Dataset JSON</div>
+      pathvqa_for_app.json<br>vqarad_for_app.json
+    </div>
+    <div class="box"><div class="title">이미지 파일</div>
+      <code>images/pathvqa/*.jpg</code><br>
+      필요시 base64(data URL) 변환
+    </div>
+    <div class="box"><div class="title">RAG 저장소</div>
+      qdrant(memory) + 문서 코퍼스
+    </div>
+  </div>
+
+  <div class="note">
+    <b>요약:</b> 현재는 <b>/agent-answer (텍스트+RAG)</b> 경로가 안정적으로 동작하며,
+    사용자 화면에는 최종 답 + retrieval/document 근거가 표시됩니다.
+    <b>/generate-steps (VLM 생성)</b>은 provider 쿼터 복구 후 재활성화 가능합니다.
+  </div>
+</body>
+</html>

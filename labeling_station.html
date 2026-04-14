@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medical PRM Labeling Station</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+:root {
+  --bg:#f4f4f4;--surface:#fff;--field:#f4f4f4;--border:#e0e0e0;--border-s:#c6c6c6;
+  --t1:#161616;--t2:#525252;--t3:#6f6f6f;--t4:#a8a8a8;--tw:#fff;
+  --blue:#0f62fe;--blue-h:#0043ce;--green:#198038;--green-bg:#defbe6;
+  --red:#da1e28;--red-bg:#fff1f1;
+  --sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'IBM Plex Mono','Consolas',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--t1);font-size:14px;line-height:1.5;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── Header ── */
+.hdr{height:48px;background:#161616;display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0;}
+.hdr-title{color:#fff;font-size:14px;font-weight:600;}
+.hdr-sep{width:1px;height:20px;background:#393939;}
+.hdr-s{color:#c6c6c6;font-size:12px;font-family:var(--mono);}
+.hdr-s strong{color:#fff;}
+
+/* ── Progress ── */
+.pbar{height:3px;background:#393939;flex-shrink:0;}
+.pfill{height:100%;background:var(--green);transition:width 200ms;}
+
+/* ── Main ── */
+.main{flex:1;overflow-y:auto;padding:24px;max-width:720px;margin:0 auto;width:100%;}
+
+/* ── Sample header ── */
+.sv-top{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.sv-n{font-size:20px;font-weight:700;font-family:var(--mono);}
+.sv-of{font-size:13px;color:var(--t3);}
+.tag{font-size:11px;font-weight:600;padding:2px 8px;}
+.tag-pos{background:var(--green-bg);color:var(--green);}
+.tag-neg{background:var(--red-bg);color:var(--red);}
+.tag-info{background:#edf5ff;color:var(--blue);}
+
+/* ── Question block ── */
+.qb{background:var(--surface);border:1px solid var(--border);padding:14px 18px;margin-bottom:10px;}
+.ql{font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.qt{font-size:14px;line-height:1.6;}
+.qo{display:flex;flex-direction:column;gap:3px;margin-top:8px;}
+.qo-i{display:flex;align-items:center;gap:8px;font-size:13px;padding:3px 0;}
+.qo-l{width:22px;height:22px;border:2px solid var(--border-s);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;color:var(--t2);}
+.qo-l.gold{border-color:var(--green);color:var(--green);background:var(--green-bg);}
+
+/* ── Step rows ── */
+.steps{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+.sr{display:flex;align-items:stretch;border:1px solid var(--border);background:var(--surface);transition:border-color 100ms;}
+.sr-l{width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--field);border-right:1px solid var(--border);flex-shrink:0;gap:2px;}
+.sr-idx{font-size:11px;font-weight:700;color:var(--t3);}
+.sr-sc{font-size:10px;font-family:var(--mono);color:var(--t4);}
+.sr-m{flex:1;padding:8px 12px;}
+.sr-t{font-size:12px;font-weight:600;margin-bottom:1px;}
+.sr-txt{font-size:12px;color:var(--t2);line-height:1.6;}
+.sr-r{width:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-left:1px solid var(--border);flex-shrink:0;}
+.sr-auto{font-size:9px;color:var(--t4);font-family:var(--mono);}
+.lb{width:32px;height:24px;border:1px solid var(--border-s);background:var(--surface);cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all 80ms;font-family:var(--mono);}
+.lb:hover{border-color:var(--blue);}
+.lb.sp{background:var(--green);border-color:var(--green);color:var(--tw);}
+.lb.sn{background:var(--red);border-color:var(--red);color:var(--tw);}
+
+/* ── Action bar ── */
+.ab{display:flex;align-items:center;gap:10px;padding-top:14px;border-top:1px solid var(--border);}
+.btn{display:inline-flex;align-items:center;gap:5px;height:36px;padding:0 14px;font-size:13px;font-weight:500;font-family:var(--sans);cursor:pointer;border:none;transition:background 80ms;}
+.btn:disabled{opacity:.3;cursor:not-allowed;}
+.btn-p{background:var(--blue);color:var(--tw);}
+.btn-p:not(:disabled):hover{background:var(--blue-h);}
+.btn-g{background:transparent;color:var(--blue);}
+.btn-g:not(:disabled):hover{background:#edf5ff;}
+.btn-s{background:var(--green);color:var(--tw);}
+.kh{font-size:10px;color:var(--t4);font-family:var(--mono);padding:1px 4px;background:var(--field);border:1px solid var(--border);}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-title">Labeling Station</div>
+  <div class="hdr-sep"></div>
+  <div class="hdr-s"><strong id="hDone">0</strong> / <span id="hTotal">0</span></div>
+  <div class="hdr-sep"></div>
+  <div class="hdr-s" id="hSpeed">0/min</div>
+  <div style="margin-left:auto;display:flex;gap:8px;">
+    <button class="btn btn-g" style="height:32px;font-size:12px;" onclick="exportAll()">Export</button>
+  </div>
+</div>
+
+<div class="pbar"><div class="pfill" id="pf" style="width:0%"></div></div>
+
+<div class="main" id="mainView">
+  <div style="color:var(--t4);text-align:center;padding:60px 0;">Loading...</div>
+</div>
+
+<script>
+// ════════════════════════════
+// DEMO DATA
+// ════════════════════════════
+const TYPES=[
+  {name:'Chest X-ray',q:'Most likely diagnosis?',opts:['Normal','RLL pneumonia','TB','CHF'],gold:1},
+  {name:'Chest X-ray',q:'Cardiac evaluation finding?',opts:['Normal CTR','Cardiomegaly','Pleural effusion','Pneumothorax'],gold:1},
+  {name:'Pathology',q:'Histopathological diagnosis?',opts:['Normal','SCLC','Adenocarcinoma','SCC'],gold:2},
+  {name:'Fundus',q:'ETDRS DR classification?',opts:['Mild NPDR','Moderate NPDR','Severe NPDR','PDR'],gold:3},
+];
+const SN=['Findings','Localization','Differential','Final answer'];
+
+function genData(n){
+  const d=[];
+  for(let i=0;i<n;i++){
+    const c=TYPES[i%TYPES.length];
+    const g='ABCD'[c.gold];
+    const ok=Math.random()>.35;
+    const wl='ABCD'.split('').filter(l=>l!==g);
+    const fa=ok?g:wl[Math.floor(Math.random()*wl.length)];
+    const steps=SN.map((nm,si)=>{
+      const sc_ok=si<3?Math.random()>.2:ok;
+      const score=sc_ok?.4+Math.random()*.55:Math.random()*.15;
+      return {step:si+1,title:nm,text:`${nm} analysis: findings ${sc_ok?'consistent':'inconsistent'} with ${sc_ok?g:wl[0]}.`,mc_score:Math.round(score*1000)/1000,auto_label:score>0?'+':'-',final_label:null};
+    });
+    d.push({id:`s_${String(i+1).padStart(5,'0')}`,idx:i,case_type:c.name,question:c.q,options:{A:c.opts[0],B:c.opts[1],C:c.opts[2],D:c.opts[3]},gold:g,llm_ans:fa,is_correct:ok,steps,status:'pending'});
+  }
+  return d;
+}
+
+let S=genData(20),cur=0,t0=Date.now();
+setInterval(updateHdr,2000);
+
+// ════════════════════════════
+// RENDER
+// ════════════════════════════
+function render(){
+  const d=S[cur];
+  if(!d){document.getElementById('mainView').innerHTML='<div style="text-align:center;padding:60px 0;color:var(--t3);">All done.</div>';return;}
+
+  const opts=Object.entries(d.options).map(([k,v])=>
+    `<div class="qo-i"><div class="qo-l ${k===d.gold?'gold':''}">${k}</div><span style="${k===d.gold?'font-weight:600;':''}">${v}</span>${k===d.gold?'<span class="tag tag-pos" style="margin-left:auto;">Gold</span>':''}</div>`
+  ).join('');
+
+  const steps=d.steps.map((s,si)=>{
+    const lb=s.final_label!==null?s.final_label:s.auto_label;
+    const ov=s.final_label!==null&&s.final_label!==s.auto_label;
+    return `<div class="sr">
+      <div class="sr-l"><div class="sr-idx">${s.step}</div><div class="sr-sc">${s.mc_score.toFixed(2)}</div></div>
+      <div class="sr-m">
+        <div class="sr-t">${s.title}${ov?' <span style="color:var(--red);font-size:10px;">OVERRIDE</span>':''}</div>
+        <div class="sr-txt">${s.text}</div>
+      </div>
+      <div class="sr-r">
+        <div class="sr-auto">auto:${s.auto_label}</div>
+        <div style="display:flex;gap:3px;">
+          <button class="lb ${lb==='+'?'sp':''}" onclick="setL(${si},'+')">+</button>
+          <button class="lb ${lb==='-'?'sn':''}" onclick="setL(${si},'-')">&minus;</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('mainView').innerHTML=`
+    <div class="sv-top">
+      <div class="sv-n">${cur+1}<span class="sv-of">/${S.length}</span></div>
+      <span class="tag tag-info">${d.case_type}</span>
+      <span class="tag ${d.is_correct?'tag-pos':'tag-neg'}">${d.is_correct?'Correct':'Incorrect'}</span>
+      <span style="font-size:12px;color:var(--t3);font-family:var(--mono);">Gold:${d.gold} LLM:${d.llm_ans}</span>
+      ${d.status==='done'?'<span class="tag tag-pos">Done</span>':d.status==='skipped'?'<span class="tag" style="background:var(--field);color:var(--t3);">Skipped</span>':''}
+    </div>
+
+    <div class="qb">
+      <div class="ql">Question</div>
+      <div class="qt">${d.question}</div>
+      <div class="qo">${opts}</div>
+    </div>
+
+    <div class="ql" style="margin-bottom:6px;">Steps -- press 1-4 to toggle label</div>
+    <div class="steps">${steps}</div>
+
+    <div class="ab">
+      <button class="btn btn-g" onclick="goPrev()">Prev <span class="kh">&larr;</span></button>
+      <button class="btn btn-p" onclick="approveAll()">Approve all <span class="kh">A</span></button>
+      <button class="btn btn-g" onclick="skip()">Skip <span class="kh">S</span></button>
+      <button class="btn btn-s" onclick="confirmNext()">Next <span class="kh">Enter</span></button>
+      <span style="margin-left:auto;font-size:10px;color:var(--t4);font-family:var(--mono);">${d.id}</span>
+    </div>`;
+
+  updateHdr();
+}
+
+// ════════════════════════════
+// ACTIONS
+// ════════════════════════════
+function setL(si,lb){
+  const d=S[cur];
+  d.steps[si].final_label=d.steps[si].final_label===lb?null:lb;
+  render();
+}
+
+function approveAll(){
+  const d=S[cur];
+  d.steps.forEach(s=>{s.final_label=s.auto_label;});
+  d.status='done';
+  nextPending();
+}
+
+function confirmNext(){
+  const d=S[cur];
+  d.steps.forEach(s=>{if(s.final_label===null)s.final_label=s.auto_label;});
+  d.status='done';
+  nextPending();
+}
+
+function skip(){S[cur].status='skipped';nextPending();}
+
+function nextPending(){
+  for(let i=cur+1;i<S.length;i++){if(S[i].status==='pending'){cur=i;render();return;}}
+  for(let i=0;i<cur;i++){if(S[i].status==='pending'){cur=i;render();return;}}
+  render();
+}
+
+function goPrev(){if(cur>0){cur--;render();}}
+
+// ════════════════════════════
+// HEADER STATS
+// ════════════════════════════
+function updateHdr(){
+  const done=S.filter(s=>s.status==='done').length;
+  document.getElementById('hDone').textContent=done;
+  document.getElementById('hTotal').textContent=S.length;
+  document.getElementById('pf').style.width=(done/S.length*100)+'%';
+  const sec=(Date.now()-t0)/1000;
+  const speed=sec>0?(done/(sec/60)).toFixed(1):'0';
+  document.getElementById('hSpeed').textContent=speed+'/min';
+}
+
+// ════════════════════════════
+// KEYBOARD
+// ════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+  const k=e.key.toLowerCase();
+  if(k==='a'){e.preventDefault();approveAll();}
+  else if(k==='enter'){e.preventDefault();confirmNext();}
+  else if(k==='s'){e.preventDefault();skip();}
+  else if(k==='arrowleft'){e.preventDefault();goPrev();}
+  else if(k==='arrowright'){e.preventDefault();if(cur<S.length-1){cur++;render();}}
+  else if('1234'.includes(k)){
+    e.preventDefault();
+    const si=parseInt(k)-1;
+    const d=S[cur];
+    if(d&&si<d.steps.length){
+      const c=d.steps[si].final_label,a=d.steps[si].auto_label;
+      if(c===null)setL(si,a==='+'?'-':'+');
+      else if(c!==a)setL(si,a);
+      else setL(si,null);
+    }
+  }
+  else if(e.ctrlKey&&k==='e'){e.preventDefault();exportAll();}
+});
+
+// ════════════════════════════
+// EXPORT
+// ════════════════════════════
+function exportAll(){
+  const done=S.filter(s=>s.status==='done');
+  if(!done.length){alert('No labeled samples.');return;}
+  const out={
+    metadata:{total:S.length,labeled:done.length,override_rate:(done.filter(s=>s.steps.some(st=>st.final_label!==st.auto_label)).length/done.length*100).toFixed(1)+'%',exported:new Date().toISOString()},
+    samples:done.map(s=>({id:s.id,case_type:s.case_type,question:s.question,options:s.options,gold_answer:s.gold,steps:s.steps.map(st=>({step:st.step,title:st.title,text:st.text,mc_score:st.mc_score,auto_label:st.auto_label,final_label:st.final_label,overridden:st.final_label!==st.auto_label})),conversations:[{from:'system',value:'You are a medical AI assistant.'},{from:'human',value:`### Question:\n${s.question}\n\n${Object.entries(s.options).map(([k,v])=>`${k}) ${v}`).join('\n')}\n\n### Solution:\n${s.steps.map(st=>`Step ${st.step}: ${st.text}`).join('\n')}`},{from:'gpt',value:s.steps[s.steps.length-1].final_label||'+'}]}))
+  };
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`labeled_${Date.now()}.json`;a.click();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VisualPRM 상세 설명 (드롭다운)</title>
+  <style>
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; margin:24px; color:#1f2937; background:#f8fafc; }
+    h1 { margin:0 0 8px; }
+    .sub { color:#64748b; margin-bottom:16px; }
+    details { background:#fff; border:1px solid #dbe2ea; border-radius:10px; margin:10px 0; padding:10px 12px; }
+    summary { cursor:pointer; font-weight:700; color:#0f172a; }
+    .content { margin-top:10px; line-height:1.55; }
+    code { background:#eef2f7; padding:2px 6px; border-radius:6px; }
+    ul { margin:8px 0 0 18px; }
+    .tag { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; background:#e2e8f0; color:#334155; margin-left:6px; }
+  </style>
+</head>
+<body>
+  <h1>VisualPRM 전체 설명 (드롭다운)</h1>
+  <div class="sub">필요한 항목만 펼쳐서 확인할 수 있는 버전</div>
+
+  <details open>
+    <summary>1) 현재 요약 <span class="tag">Executive</span></summary>
+    <div class="content">
+      <ul>
+        <li><b>텍스트+RAG</b> 경로는 정상 동작 (<code>/agent-answer</code> 200)</li>
+        <li><b>VLM 생성</b> 경로는 현재 quota 이슈로 차단 (<code>/generate-steps</code> 429)</li>
+        <li><b>RunPod</b>는 pod 생성 가능하지만 SSH exec 경로가 불안정</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>2) 사용자 요청이 답변으로 보이기까지 <span class="tag">Data Flow</span></summary>
+    <div class="content">
+      <ol>
+        <li>Frontend(app.html/app.js)에서 question/options(+image_url) 전송</li>
+        <li>Backend API가 요청 수신 (<code>/agent-answer</code> or <code>/generate-steps</code>)</li>
+        <li>policy 생성 → specialist 라우팅</li>
+        <li>qdrant에서 retrieval + reranker 정렬 + document RAG 결합</li>
+        <li>최종 답/근거/step 정보를 JSON으로 반환</li>
+        <li>Frontend에서 trace + 최종답 렌더링</li>
+      </ol>
+    </div>
+  </details>
+
+  <details>
+    <summary>3) specialist는 무엇이 있나? <span class="tag">Routing</span></summary>
+    <div class="content">
+      <ul>
+        <li><code>general_medical_reasoner</code> (기본)</li>
+        <li><code>radiology_reasoner</code> (영상의학)</li>
+        <li><code>pathology_reasoner</code> (병리)</li>
+        <li><code>modality_recognition_reasoner</code> (modality 인식형 질문)</li>
+      </ul>
+      분기 기준은 dataset/case_type/modality/question_type/질문 키워드(예: uptake, nucleus, h&e 등)입니다.
+    </div>
+  </details>
+
+  <details>
+    <summary>4) qdrant는 어떻게 만들었나? <span class="tag">RAG Index</span></summary>
+    <div class="content">
+      <ul>
+        <li>컬렉션: <code>medical_vqa_cases</code></li>
+        <li>기본 모드: <code>RAG_QDRANT_MODE=memory</code></li>
+        <li>벡터 차원: 256</li>
+        <li>인덱싱 대상: dataset 케이스(question/options/modality/case_type 등)</li>
+        <li>payload 포함: dataset, id, case_type, modality, question, options, image_url</li>
+      </ul>
+      임베딩은 기본 <code>hash-fallback</code>, 옵션으로 sentence-transformers 사용 가능.
+      <code>RAG_AUTO_WARM=1</code>이면 서버 시작 시 자동 warmup 됩니다.
+    </div>
+  </details>
+
+  <details>
+    <summary>5) Document RAG는 어떤 걸 쓰나? <span class="tag">Evidence</span></summary>
+    <div class="content">
+      현재 로그에서 확인된 대표 예시:
+      <ul>
+        <li><b>Nuclear enlargement</b>: 핵 비대 판독 포인트 설명</li>
+        <li><b>Hyperchromasia and atypia</b>: H&E 맥락의 비정형 소견 설명</li>
+      </ul>
+      즉, 모델 단독 추론이 아니라 문서 근거를 함께 붙여 답변 품질/설명력을 높입니다.
+    </div>
+  </details>
+
+  <details>
+    <summary>6) 왜 VLM 생성은 막혀 있나? <span class="tag">Quota</span></summary>
+    <div class="content">
+      <ul>
+        <li>Gemini: <code>RESOURCE_EXHAUSTED</code> (monthly spending cap 초과)</li>
+        <li>OpenAI: <code>insufficient_quota</code></li>
+      </ul>
+      코드/로직 문제가 아니라 provider 결제/한도 설정 이슈입니다.
+    </div>
+  </details>
+
+  <details>
+    <summary>7) RunPod는 왜 안 됐나? <span class="tag">Infra</span></summary>
+    <div class="content">
+      여러 GPU/Cloud 조합에서 pod는 RUNNING이지만,
+      SSH public port가 미할당이거나 connection refused가 반복되었습니다.
+      즉, 스케줄링은 되지만 exec(SSH) 채널이 불안정한 상태입니다.
+    </div>
+  </details>
+
+  <details>
+    <summary>8) 지금 당장 가능한 운영 전략 <span class="tag">Action</span></summary>
+    <div class="content">
+      <ul>
+        <li>단기: <code>/agent-answer</code> 중심 데모/평가 지속</li>
+        <li>중기: provider quota 복구 후 VLM 1→2→20 샘플 순차 검증</li>
+        <li>병행: RunPod 지원 문의(SSH 포트 증빙 첨부)</li>
+      </ul>
+    </div>
+  </details>
+
+</body>
+</html>

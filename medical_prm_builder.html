@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medical Visual PRM Builder</title>
+<style>
+/* ── IBM Carbon-inspired Design Tokens ── */
+:root {
+  --c-bg: #f4f4f4;
+  --c-surface: #ffffff;
+  --c-surface-alt: #e0e0e0;
+  --c-border: #c6c6c6;
+  --c-border-subtle: #e0e0e0;
+  --c-text-primary: #161616;
+  --c-text-secondary: #525252;
+  --c-text-helper: #6f6f6f;
+  --c-text-placeholder: #a8a8a8;
+  --c-text-inverse: #ffffff;
+  --c-interactive: #0f62fe;
+  --c-interactive-hover: #0043ce;
+  --c-interactive-active: #002d9c;
+  --c-success: #198038;
+  --c-success-bg: #defbe6;
+  --c-success-border: #a7f0ba;
+  --c-danger: #da1e28;
+  --c-danger-bg: #fff1f1;
+  --c-danger-border: #ffd7d9;
+  --c-warning: #f1c21b;
+  --c-warning-bg: #fdf6dd;
+  --c-warning-border: #fddc69;
+  --c-info-bg: #edf5ff;
+  --c-info-border: #a6c8ff;
+  --c-field-bg: #f4f4f4;
+  --c-focus: #0f62fe;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --spacing-01: 2px;
+  --spacing-02: 4px;
+  --spacing-03: 8px;
+  --spacing-04: 12px;
+  --spacing-05: 16px;
+  --spacing-06: 24px;
+  --spacing-07: 32px;
+  --spacing-08: 40px;
+  --spacing-09: 48px;
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Consolas', monospace;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: var(--c-bg); color: var(--c-text-primary); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+/* ── Header ── */
+.header {
+  height: 48px; background: #161616; display: flex; align-items: center;
+  padding: 0 var(--spacing-07); position: sticky; top: 0; z-index: 100;
+}
+.header-title { color: #ffffff; font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
+.header-divider { width: 1px; height: 20px; background: #393939; margin: 0 var(--spacing-05); }
+.header-meta { color: #c6c6c6; font-size: 12px; }
+
+/* ── Progress Indicator ── */
+.progress-indicator {
+  max-width: 820px; margin: 0 auto; padding: var(--spacing-07) var(--spacing-07) 0;
+  display: flex; align-items: flex-start;
+}
+.pi-item { display: flex; align-items: center; flex: 1; }
+.pi-wrap { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: var(--spacing-03); }
+.pi-circle {
+  width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--c-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  background: var(--c-surface); color: var(--c-text-helper); transition: all 150ms;
+}
+.pi-circle.current { background: var(--c-interactive); border-color: var(--c-interactive); color: var(--c-text-inverse); }
+.pi-circle.complete { background: var(--c-success); border-color: var(--c-success); color: var(--c-text-inverse); }
+.pi-label { font-size: 11px; color: var(--c-text-helper); text-align: center; max-width: 72px; line-height: 1.4; }
+.pi-wrap:has(.current) .pi-label { color: var(--c-interactive); font-weight: 600; }
+.pi-wrap:has(.complete) .pi-label { color: var(--c-success); }
+.pi-line { flex: 1; height: 1px; background: var(--c-border); margin-top: -20px; }
+.pi-line.complete { background: var(--c-success); }
+
+/* ── Content ── */
+.content { max-width: 820px; margin: 0 auto; padding: 60px var(--spacing-07) 80px; }
+
+/* ── Tile ── */
+.tile {
+  background: var(--c-surface); border: 1px solid var(--c-border-subtle);
+  padding: var(--spacing-06); margin-bottom: var(--spacing-05);
+}
+.tile-header { font-size: 14px; font-weight: 600; color: var(--c-text-primary); margin-bottom: var(--spacing-01); }
+.tile-desc { font-size: 12px; color: var(--c-text-helper); margin-bottom: var(--spacing-06); line-height: 1.6; }
+
+/* ── Page ── */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── Form ── */
+.form-label { display: block; font-size: 12px; font-weight: 500; color: var(--c-text-secondary); margin-bottom: var(--spacing-02); letter-spacing: 0.01em; }
+.form-input {
+  width: 100%; height: 40px; border: none; border-bottom: 1px solid var(--c-border);
+  padding: 0 var(--spacing-05); font-size: 14px; font-family: var(--font-sans);
+  background: var(--c-field-bg); color: var(--c-text-primary); transition: border-color 150ms;
+  outline: none;
+}
+.form-input:focus { border-bottom: 2px solid var(--c-focus); }
+textarea.form-input { height: auto; padding: var(--spacing-04) var(--spacing-05); resize: vertical; }
+select.form-input { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23161616' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; }
+.form-group { margin-bottom: var(--spacing-05); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-05); }
+@media(max-width:600px){ .form-row { grid-template-columns: 1fr; } }
+
+/* ── MCQ Options ── */
+.mcq-list { display: flex; flex-direction: column; gap: var(--spacing-03); }
+.mcq-item { display: flex; align-items: center; gap: var(--spacing-04); padding: var(--spacing-03) 0; }
+.mcq-letter {
+  width: 28px; height: 28px; border: 2px solid var(--c-border); font-size: 12px;
+  font-weight: 600; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--c-text-secondary); background: var(--c-surface);
+}
+.mcq-letter.answer { border-color: var(--c-success); color: var(--c-success); background: var(--c-success-bg); }
+/* mcq-radio removed: gold answer is fixed from dataset */
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: var(--spacing-03);
+  height: 40px; padding: 0 var(--spacing-05); font-size: 14px; font-weight: 500;
+  font-family: var(--font-sans); cursor: pointer; border: none; transition: background 150ms;
+  letter-spacing: 0.01em;
+}
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.btn-primary { background: var(--c-interactive); color: var(--c-text-inverse); }
+.btn-primary:not(:disabled):hover { background: var(--c-interactive-hover); }
+.btn-success { background: var(--c-success); color: var(--c-text-inverse); }
+.btn-success:not(:disabled):hover { background: #0e6027; }
+.btn-ghost { background: transparent; color: var(--c-interactive); }
+.btn-ghost:not(:disabled):hover { background: var(--c-info-bg); }
+.btn-secondary { background: var(--c-surface-alt); color: var(--c-text-primary); }
+.btn-secondary:not(:disabled):hover { background: var(--c-border); }
+.btn-sm { height: 32px; font-size: 12px; padding: 0 var(--spacing-04); }
+.btn-lg { height: 48px; font-size: 14px; padding: 0 var(--spacing-07); }
+
+/* ── Tabs (content switcher) ── */
+.switcher { display: flex; gap: 0; margin-bottom: var(--spacing-05); }
+.switcher-item {
+  padding: var(--spacing-03) var(--spacing-05); font-size: 13px; font-weight: 500;
+  cursor: pointer; border: 1px solid var(--c-border); background: var(--c-surface);
+  color: var(--c-text-secondary); transition: all 100ms; margin-right: -1px;
+}
+.switcher-item:first-child { border-radius: 0; }
+.switcher-item:last-child { border-radius: 0; }
+.switcher-item.active { background: var(--c-interactive); border-color: var(--c-interactive); color: var(--c-text-inverse); z-index: 1; }
+
+/* ── Structured List (step cards) ── */
+.structured-list { border: 1px solid var(--c-border-subtle); margin-bottom: var(--spacing-04); }
+.sl-header { display: flex; align-items: center; gap: var(--spacing-04); padding: var(--spacing-04) var(--spacing-05); background: var(--c-field-bg); border-bottom: 1px solid var(--c-border-subtle); }
+.sl-index { width: 24px; height: 24px; background: var(--c-interactive); color: var(--c-text-inverse); font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sl-title { font-size: 13px; font-weight: 600; flex: 1; }
+.sl-body { padding: var(--spacing-04) var(--spacing-05); font-size: 13px; line-height: 1.7; color: var(--c-text-secondary); }
+.answer-block { display: flex; align-items: center; gap: var(--spacing-04); padding: var(--spacing-04) var(--spacing-05); border: 1px solid var(--c-border-subtle); margin-top: var(--spacing-04); }
+.answer-indicator { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; flex-shrink: 0; color: var(--c-text-inverse); }
+.answer-indicator.correct { background: var(--c-success); }
+.answer-indicator.incorrect { background: var(--c-danger); }
+
+/* ── Monte Carlo ── */
+.mc-block { border: 1px solid var(--c-border-subtle); margin-bottom: var(--spacing-05); }
+.mc-header { display: flex; align-items: center; gap: var(--spacing-04); padding: var(--spacing-04) var(--spacing-05); background: var(--c-field-bg); border-bottom: 1px solid var(--c-border-subtle); }
+.mc-body { padding: var(--spacing-05); }
+.mc-grid { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: var(--spacing-04); }
+.mc-cell {
+  width: 28px; height: 28px; border: 1px solid var(--c-border);
+  background: var(--c-field-bg); display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; font-family: var(--font-mono); transition: all 200ms;
+}
+.mc-cell.hit { background: var(--c-success-bg); border-color: var(--c-success); color: var(--c-success); }
+.mc-cell.miss { background: var(--c-danger-bg); border-color: var(--c-danger); color: var(--c-danger); }
+.mc-cell.running { background: var(--c-warning-bg); border-color: var(--c-warning); animation: blink .7s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.35} }
+.score-track { height: 4px; background: var(--c-surface-alt); margin-bottom: var(--spacing-02); }
+.score-bar { height: 100%; transition: width 400ms; }
+.score-bar.high { background: var(--c-success); }
+.score-bar.mid { background: var(--c-warning); }
+.score-bar.low { background: var(--c-danger); }
+.score-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--c-text-helper); font-family: var(--font-mono); }
+.label-tag { display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+.label-tag.pos { background: var(--c-success-bg); color: var(--c-success); }
+.label-tag.neg { background: var(--c-danger-bg); color: var(--c-danger); }
+
+/* ── Data Table ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th { background: var(--c-field-bg); padding: var(--spacing-04) var(--spacing-05); font-size: 12px; font-weight: 600; text-align: left; border-bottom: 1px solid var(--c-border); color: var(--c-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+.data-table td { padding: var(--spacing-04) var(--spacing-05); border-bottom: 1px solid var(--c-border-subtle); }
+
+/* ── Inline Notification ── */
+.notification { padding: var(--spacing-04) var(--spacing-05); font-size: 13px; margin-bottom: var(--spacing-05); border-left: 3px solid; display: flex; gap: var(--spacing-04); }
+.notification-info { background: var(--c-info-bg); border-color: var(--c-interactive); color: var(--c-text-primary); }
+.notification-success { background: var(--c-success-bg); border-color: var(--c-success); color: var(--c-text-primary); }
+.notification-warning { background: var(--c-warning-bg); border-color: var(--c-warning); color: var(--c-text-primary); }
+
+/* ── Stats ── */
+.stat-grid { display: flex; gap: var(--spacing-04); flex-wrap: wrap; margin-bottom: var(--spacing-06); }
+.stat-tile { background: var(--c-surface); border: 1px solid var(--c-border-subtle); padding: var(--spacing-04) var(--spacing-05); min-width: 100px; }
+.stat-value { font-size: 24px; font-weight: 700; line-height: 1.2; }
+.stat-value.blue { color: var(--c-interactive); }
+.stat-value.green { color: var(--c-success); }
+.stat-value.red { color: var(--c-danger); }
+.stat-desc { font-size: 11px; color: var(--c-text-helper); margin-top: 2px; letter-spacing: 0.02em; }
+
+/* ── Dataset Viewer ── */
+.viewer { display: grid; grid-template-columns: 220px 1fr; gap: var(--spacing-05); }
+@media(max-width:600px){ .viewer { grid-template-columns: 1fr; } }
+.viewer-list { border: 1px solid var(--c-border-subtle); max-height: 480px; overflow-y: auto; }
+.viewer-row { padding: var(--spacing-04) var(--spacing-05); border-bottom: 1px solid var(--c-border-subtle); cursor: pointer; transition: background 100ms; display: flex; align-items: center; gap: var(--spacing-03); }
+.viewer-row:hover, .viewer-row.active { background: var(--c-info-bg); }
+.viewer-row-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.viewer-row-indicator.pos { background: var(--c-success); }
+.viewer-row-indicator.neg { background: var(--c-danger); }
+
+/* ── QA Review ── */
+.qa-card { border: 1px solid var(--c-border-subtle); margin-bottom: var(--spacing-04); transition: border-color 150ms; }
+.qa-card.approved { border-left: 3px solid var(--c-success); }
+.qa-card.rejected { border-left: 3px solid var(--c-danger); }
+.qa-card.pending { border-left: 3px solid var(--c-border); }
+.qa-card-header { display: flex; align-items: center; gap: var(--spacing-04); padding: var(--spacing-04) var(--spacing-05); background: var(--c-field-bg); border-bottom: 1px solid var(--c-border-subtle); }
+.qa-card-body { padding: var(--spacing-05); }
+.qa-actions { display: flex; gap: var(--spacing-03); margin-top: var(--spacing-04); }
+.qa-status { font-size: 11px; font-weight: 600; padding: 2px 8px; margin-left: auto; }
+.qa-status.s-pending { background: var(--c-field-bg); color: var(--c-text-helper); }
+.qa-status.s-approved { background: var(--c-success-bg); color: var(--c-success); }
+.qa-status.s-rejected { background: var(--c-danger-bg); color: var(--c-danger); }
+.gauge { display: flex; align-items: center; gap: var(--spacing-05); margin-bottom: var(--spacing-06); }
+.gauge-bar { flex: 1; height: 24px; background: var(--c-field-bg); border: 1px solid var(--c-border-subtle); position: relative; overflow: hidden; }
+.gauge-fill { height: 100%; transition: width 400ms; position: absolute; left: 0; top: 0; }
+.gauge-fill.pass { background: var(--c-success-bg); }
+.gauge-fill.fail { background: var(--c-danger-bg); }
+.gauge-threshold { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--c-danger); z-index: 1; }
+.gauge-label { font-size: 12px; font-weight: 600; font-family: var(--font-mono); min-width: 80px; text-align: right; }
+.qa-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-04); margin-bottom: var(--spacing-06); }
+@media(max-width:600px){ .qa-summary-grid { grid-template-columns: 1fr 1fr; } }
+.viewer-detail { border: 1px solid var(--c-border-subtle); padding: var(--spacing-06); }
+.detail-section { margin-bottom: var(--spacing-06); }
+.detail-heading { font-size: 11px; font-weight: 600; color: var(--c-text-helper); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: var(--spacing-03); }
+.detail-block { font-size: 13px; line-height: 1.7; background: var(--c-field-bg); padding: var(--spacing-04) var(--spacing-05); color: var(--c-text-secondary); }
+.step-item { display: flex; align-items: flex-start; gap: var(--spacing-04); padding: var(--spacing-04) var(--spacing-05); border-left: 3px solid var(--c-border); margin-bottom: var(--spacing-03); background: var(--c-field-bg); font-size: 13px; }
+.step-item.pos { border-left-color: var(--c-success); }
+.step-item.neg { border-left-color: var(--c-danger); }
+
+/* ── Controls ── */
+.controls { display: flex; align-items: center; gap: var(--spacing-04); flex-wrap: wrap; font-size: 13px; margin-bottom: var(--spacing-05); }
+.controls label { font-weight: 500; color: var(--c-text-secondary); }
+input[type=range] { accent-color: var(--c-interactive); }
+
+/* ── Footer Nav ── */
+.footer-nav { display: flex; justify-content: space-between; align-items: center; margin-top: var(--spacing-07); padding-top: var(--spacing-05); border-top: 1px solid var(--c-border-subtle); }
+
+/* ── Loading ── */
+.spinner { display: inline-flex; gap: 3px; align-items: center; }
+.spinner i { width: 4px; height: 4px; background: var(--c-interactive); animation: spin 1s infinite; }
+.spinner i:nth-child(2){animation-delay:.15s} .spinner i:nth-child(3){animation-delay:.3s}
+@keyframes spin { 0%,80%,100%{transform:scaleY(1);opacity:.3}40%{transform:scaleY(2);opacity:1} }
+
+/* ── Chip ── */
+.chip-group { display: flex; gap: var(--spacing-02); flex-wrap: wrap; }
+.chip {
+  padding: var(--spacing-02) var(--spacing-04); font-size: 12px; font-weight: 500;
+  cursor: pointer; border: 1px solid var(--c-border); background: var(--c-surface);
+  color: var(--c-text-secondary); transition: all 100ms;
+}
+.chip:hover { border-color: var(--c-interactive); color: var(--c-interactive); }
+.chip.active { background: var(--c-interactive); border-color: var(--c-interactive); color: var(--c-text-inverse); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-title">Medical PRM Builder</div>
+  <div class="header-divider"></div>
+  <div class="header-meta">MCQ-based automated pipeline</div>
+</div>
+
+<!-- Progress Indicator -->
+<div class="progress-indicator" id="progressIndicator"></div>
+
+<!-- Content -->
+<div class="content">
+
+<!-- ═══════════════════════════
+     PAGE 1: Problem Design + LLM Generation
+═══════════════════════════ -->
+<div class="page active" id="page1">
+  <div class="tile">
+    <div class="tile-header">Step 1 &mdash; Problem Design + Solution Generation</div>
+    <div class="tile-desc">Define a multiple-choice question with a medical image, then generate step-by-step reasoning solutions using an LLM. Final answers must be A/B/C/D.</div>
+
+    <div class="form-group">
+      <span class="form-label">Sample case</span>
+      <div class="chip-group" id="caseChips"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:160px 1fr;gap:var(--spacing-05);align-items:start;margin-bottom:var(--spacing-05);">
+      <div>
+        <span class="form-label">Medical image</span>
+        <div style="border:1px solid var(--c-border);padding:var(--spacing-06) var(--spacing-04);text-align:center;background:var(--c-field-bg);">
+          <div style="font-size:11px;font-weight:600;color:var(--c-text-secondary);" id="caseName">Chest X-ray</div>
+          <div style="font-size:11px;color:var(--c-text-helper);margin-top:2px;" id="caseMeta">PA view</div>
+          <div style="margin-top:var(--spacing-03);font-size:10px;color:var(--c-interactive);font-weight:500;">Sample data</div>
+        </div>
+      </div>
+      <div>
+        <div class="form-group">
+          <span class="form-label">Question</span>
+          <textarea class="form-input" id="qField" rows="2"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <span class="form-label">LLM model</span>
+            <select class="form-input" id="modelSel">
+              <option>GPT-4o</option>
+              <option>InternVL2.5-78B</option>
+              <option>MedGemini</option>
+              <option>LLaVA-Med</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <span class="form-label">Solutions per question (N)</span>
+            <select class="form-input" id="solN">
+              <option value="2">2</option>
+              <option value="4" selected>4 (recommended)</option>
+              <option value="6">6</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <span class="form-label">Answer options</span>
+      <div class="mcq-list" id="mcqList"></div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:var(--spacing-04);">
+      <button class="btn btn-primary" onclick="generateSolutions()">Generate solutions</button>
+      <span id="genStatus" style="font-size:12px;color:var(--c-text-helper);"></span>
+    </div>
+  </div>
+
+  <div id="solOutput" style="display:none;">
+    <div class="tile">
+      <div class="tile-header">Generated Solutions</div>
+      <div class="tile-desc" id="solMeta"></div>
+      <div class="switcher" id="solTabs"></div>
+      <div id="solContent"></div>
+    </div>
+  </div>
+
+  <div class="footer-nav">
+    <div></div>
+    <button class="btn btn-primary" id="btn12" onclick="goStep(2)" disabled>Next: Monte Carlo</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════
+     PAGE 2: Monte Carlo (Automated)
+═══════════════════════════ -->
+<div class="page" id="page2">
+  <div class="tile">
+    <div class="tile-header">Step 2 &mdash; Monte Carlo Rollout</div>
+    <div class="tile-desc">For each reasoning step, the LLM completes the solution 16 times. The final answer (A/B/C/D) is extracted via regex and compared against the gold answer. No human review required.</div>
+
+    <div class="notification notification-info" id="mcInfo">Configure rollout parameters and run.</div>
+
+    <div class="controls">
+      <label>Rollout count (k):</label>
+      <input type="range" min="4" max="32" value="16" step="4" id="rollK" oninput="rkv.textContent=this.value">
+      <span id="rkv" style="font-weight:600;font-family:var(--font-mono);">16</span>
+      <label style="margin-left:var(--spacing-05);">Threshold:</label>
+      <input type="range" min="0" max="8" value="0" step="1" id="thrV" oninput="updateThr()">
+      <span id="thrLbl" style="font-weight:600;font-family:var(--font-mono);">score &gt; 0</span>
+      <button class="btn btn-primary btn-sm" onclick="runMC()">Run</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--spacing-04);margin-bottom:var(--spacing-05);">
+      <div class="notification notification-info" style="margin:0;">
+        <div><strong>Extraction</strong><br><span style="font-family:var(--font-mono);font-size:12px;">/answer.*([ABCD])/i</span> &rarr; exact match</div>
+      </div>
+      <div class="notification notification-success" style="margin:0;">
+        <div><strong>MCQ advantage</strong><br>Same reliability as math PRM. Fully automated.</div>
+      </div>
+    </div>
+
+    <div id="mcOutput" style="display:none;">
+      <div id="mcSteps"></div>
+    </div>
+  </div>
+
+  <div class="footer-nav">
+    <button class="btn btn-ghost" onclick="goStep(1)">Previous</button>
+    <button class="btn btn-primary" id="btn23" onclick="goStep(3)" disabled>Next: Labeling</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════
+     PAGE 3: Label Assignment
+═══════════════════════════ -->
+<div class="page" id="page3">
+  <div class="tile">
+    <div class="tile-header">Step 3 &mdash; Label Assignment</div>
+    <div class="tile-desc">Assign +/- labels to each reasoning step based on Monte Carlo scores. Identical to the VisualPRM methodology.</div>
+
+    <div class="notification notification-info" style="display:flex;align-items:center;gap:var(--spacing-04);">
+      <div>
+        <strong>Criterion:</strong>
+        <span style="font-family:var(--font-mono);" id="thrDisplay">score &gt; 0</span>
+        &rarr; label as <strong>+</strong> (correct direction)
+      </div>
+    </div>
+
+    <div id="labelOutput">
+      <div class="notification notification-warning">Complete Step 2 first.</div>
+    </div>
+  </div>
+
+  <div id="labelStatsPanel" style="display:none;" class="tile">
+    <div class="tile-header" style="margin-bottom:var(--spacing-05);">Label Statistics</div>
+    <div class="stat-grid" id="statBoxes"></div>
+  </div>
+
+  <div class="footer-nav">
+    <button class="btn btn-ghost" onclick="goStep(2)">Previous</button>
+    <button class="btn btn-success btn-lg" id="btn34" onclick="addToDataset()" disabled>Add to dataset</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════
+     PAGE 4: Dataset
+═══════════════════════════ -->
+<div class="page" id="page4">
+  <div class="tile">
+    <div class="tile-header">Step 4 &mdash; Medical Visual PRM Dataset</div>
+    <div class="tile-desc">Browse generated samples and export as JSON. Output follows the VisualPRM400K conversation format.</div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--spacing-04);margin-bottom:var(--spacing-05);">
+      <div class="stat-grid" id="dsStats" style="margin-bottom:0;"></div>
+      <div style="display:flex;gap:var(--spacing-03);">
+        <button class="btn btn-ghost btn-sm" onclick="goStep(1)">Add case</button>
+        <button class="btn btn-primary btn-sm" onclick="exportJSON()">Export JSON</button>
+      </div>
+    </div>
+
+    <div class="notification notification-info" style="font-size:12px;">
+      Output format: <span style="font-family:var(--font-mono);">conversations [ system / human / gpt ]</span> &middot; per-step score &middot; +/- label &middot; VisualPRM400K compatible
+    </div>
+
+    <div class="viewer">
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--c-text-helper);text-transform:uppercase;letter-spacing:.05em;margin-bottom:var(--spacing-03);">Samples</div>
+        <div class="viewer-list" id="dsList"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--c-text-helper);text-transform:uppercase;letter-spacing:.05em;margin-bottom:var(--spacing-03);">Detail</div>
+        <div class="viewer-detail" id="dsDetail">
+          <div style="color:var(--c-text-placeholder);font-size:13px;text-align:center;padding:40px 0;">Select a sample</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-nav">
+    <button class="btn btn-ghost" onclick="goStep(1)">Add more cases</button>
+    <button class="btn btn-primary" id="btn45" onclick="goStep(5)">Next: QA Review</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════
+     PAGE 5: QA Review (Post-hoc)
+═══════════════════════════ -->
+<div class="page" id="page5">
+  <div class="tile">
+    <div class="tile-header">Step 5 &mdash; QA Review (Post-hoc Sampling)</div>
+    <div class="tile-desc">Medical experts review a random sample of the generated dataset. This step does not block the pipeline -- it validates overall quality. If the error rate exceeds the threshold, the dataset is flagged for revision.</div>
+
+    <!-- Reviewer info -->
+    <div style="border:1px solid var(--c-border-subtle);padding:var(--spacing-05);margin-bottom:var(--spacing-06);background:var(--c-field-bg);">
+      <div style="font-size:12px;font-weight:600;margin-bottom:var(--spacing-04);color:var(--c-text-secondary);">Reviewer information</div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="form-group">
+          <span class="form-label">Name</span>
+          <input class="form-input" type="text" id="qaReviewerName" placeholder="e.g. Dr. Kim">
+        </div>
+        <div class="form-group">
+          <span class="form-label">Specialty</span>
+          <select class="form-input" id="qaReviewerDept">
+            <option>Radiology</option><option>Pathology</option><option>Ophthalmology</option><option>Internal medicine</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <span class="form-label">Date</span>
+          <input class="form-input" type="date" id="qaDate">
+        </div>
+      </div>
+    </div>
+
+    <!-- Sampling controls -->
+    <div class="controls" style="border:1px solid var(--c-border-subtle);padding:var(--spacing-04) var(--spacing-05);background:var(--c-surface);margin-bottom:var(--spacing-05);">
+      <label>Sample size:</label>
+      <input type="range" min="1" max="10" value="3" step="1" id="qaSampleSize" oninput="document.getElementById('qaSampleSizeVal').textContent=this.value">
+      <span id="qaSampleSizeVal" style="font-weight:600;font-family:var(--font-mono);min-width:16px;">3</span>
+      <span style="color:var(--c-text-helper);font-size:12px;">out of <span id="qaTotalCount">0</span> samples</span>
+      <label style="margin-left:var(--spacing-05);">Error threshold:</label>
+      <input type="range" min="1" max="20" value="5" step="1" id="qaThreshold" oninput="document.getElementById('qaThresholdVal').textContent=this.value+'%'">
+      <span id="qaThresholdVal" style="font-weight:600;font-family:var(--font-mono);">5%</span>
+      <button class="btn btn-primary btn-sm" onclick="startQA()">Draw samples</button>
+    </div>
+
+    <div id="qaContent">
+      <div class="notification notification-info">Add samples to the dataset in Step 4, then draw random samples here for review.</div>
+    </div>
+  </div>
+
+  <!-- QA Result -->
+  <div id="qaResultPanel" style="display:none;" class="tile">
+    <div class="tile-header" style="margin-bottom:var(--spacing-05);">Review Result</div>
+
+    <!-- Error rate gauge -->
+    <div style="font-size:12px;font-weight:600;color:var(--c-text-secondary);margin-bottom:var(--spacing-03);">Error rate</div>
+    <div class="gauge">
+      <div class="gauge-bar">
+        <div class="gauge-fill" id="qaGaugeFill" style="width:0%"></div>
+        <div class="gauge-threshold" id="qaGaugeThr" style="left:5%"></div>
+      </div>
+      <div class="gauge-label" id="qaGaugeLabel">0.0%</div>
+    </div>
+
+    <div class="qa-summary-grid" id="qaSummaryGrid"></div>
+
+    <div id="qaVerdict" class="notification notification-info" style="margin-bottom:var(--spacing-05);"></div>
+
+    <div style="display:flex;gap:var(--spacing-03);">
+      <button class="btn btn-success" id="qaApproveBtn" onclick="approveDataset()" disabled>Approve dataset</button>
+      <button class="btn btn-secondary" onclick="startQA()">Resample</button>
+      <button class="btn btn-ghost" onclick="goStep(1)">Revise and regenerate</button>
+    </div>
+  </div>
+
+  <!-- Export -->
+  <div id="qaExportPanel" style="display:none;" class="tile">
+    <div class="tile-header" style="margin-bottom:var(--spacing-04);">Export</div>
+    <div class="notification notification-success">Dataset approved. Ready for export.</div>
+    <div class="stat-grid" id="qaFinalStats" style="margin-bottom:var(--spacing-05);"></div>
+    <button class="btn btn-primary" onclick="exportJSON()">Export JSON</button>
+  </div>
+
+  <div class="footer-nav">
+    <button class="btn btn-ghost" onclick="goStep(4)">Previous</button>
+    <div id="qaFooterStatus" style="font-size:12px;color:var(--c-text-helper);"></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+// ════════════════════════════
+// NAVIGATION
+// ════════════════════════════
+const STEPS = [
+  { n:1, label:'Problem design' },
+  { n:2, label:'Monte Carlo' },
+  { n:3, label:'Labeling' },
+  { n:4, label:'Dataset' },
+  { n:5, label:'QA Review' },
+];
+
+function renderNav(active) {
+  document.getElementById('progressIndicator').innerHTML = STEPS.map((s,i) => {
+    const cls = s.n===active?'current':s.n<active?'complete':'';
+    return `<div class="pi-item">
+      <div class="pi-wrap">
+        <div class="pi-circle ${cls}" onclick="goStep(${s.n})">${s.n<active?'&#10003;':s.n}</div>
+        <div class="pi-label">${s.label}</div>
+      </div>
+      ${i<STEPS.length-1?`<div class="pi-line ${s.n<active?'complete':''}"></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function goStep(n) {
+  for(let i=1;i<=5;i++) document.getElementById('page'+i).classList.toggle('active',i===n);
+  renderNav(n);
+  if(n===3) buildLabelTable();
+  if(n===4) renderDataset();
+  if(n===5) initQA();
+}
+
+// ════════════════════════════
+// DATA
+// ════════════════════════════
+const CASES = [
+  {
+    name:'Chest X-ray', meta:'PA view, M/52',
+    q:'What is the most likely diagnosis on this chest X-ray?',
+    opts:['Normal findings','Right lower lobe pneumonia','Pulmonary tuberculosis','Congestive heart failure'],
+    gold:1,
+    steps:[
+      {t:'Overall findings',txt:'Consolidation is observed in the right lower lobe. The left lung field is clear. Cardiac silhouette is within normal limits.'},
+      {t:'Localization',txt:'The consolidation involves the entire right lower lobe with visible air bronchograms. The distribution is lobar and segmental.'},
+      {t:'Differential diagnosis',txt:'Bacterial pneumonia is most consistent with lobar consolidation and air bronchograms. TB typically affects upper lobes. CHF shows bilateral distribution.'},
+      {t:'Final answer',txt:'Lobar consolidation with air bronchogram in the right lower lobe is most consistent with bacterial pneumonia. The answer is B.'},
+    ]
+  },
+  {
+    name:'Chest X-ray', meta:'PA view, F/67',
+    q:'What is the most appropriate diagnosis based on cardiac evaluation?',
+    opts:['Normal cardiac size (CTR < 0.5)','Cardiomegaly (CTR > 0.5)','Left pleural effusion','Right pneumothorax'],
+    gold:1,
+    steps:[
+      {t:'CTR measurement',txt:'Maximum cardiac diameter: 68mm. Maximum thoracic diameter: 110mm. CTR = 68/110 = 0.62, exceeding the normal threshold of 0.5.'},
+      {t:'Cardiac contour',txt:'Left ventricular border extends inferolaterally. Double density sign indicates left atrial enlargement. Pulmonary vascular markings are prominent.'},
+      {t:'Secondary findings',txt:'No pleural effusion. No pneumothorax. Pulmonary vascular congestion suggests early heart failure.'},
+      {t:'Final answer',txt:'CTR of 0.62 confirms cardiomegaly with left atrial and ventricular enlargement. The answer is B.'},
+    ]
+  },
+  {
+    name:'Pathology slide', meta:'H&E, lung, 40x',
+    q:'What is the most likely histopathological diagnosis?',
+    opts:['Normal lung tissue','Small cell lung cancer','Lung adenocarcinoma','Squamous cell carcinoma'],
+    gold:2,
+    steps:[
+      {t:'Architecture',txt:'Normal alveolar architecture is replaced by glandular tumor formations. Desmoplastic stromal reaction is present at the periphery.'},
+      {t:'Cytology',txt:'High nuclear-to-cytoplasmic ratio with nuclear pleomorphism and prominent nucleoli. Cells show abundant cytoplasm in glandular arrangement.'},
+      {t:'Differential',txt:'SCLC shows small cells with molding. SCC shows keratinization. The acinar glandular pattern is consistent with adenocarcinoma. TTF-1 positivity expected.'},
+      {t:'Final answer',txt:'Glandular pattern with TTF-1 positivity profile indicates lung adenocarcinoma. The answer is C.'},
+    ]
+  },
+  {
+    name:'Fundus photo', meta:'OD, 45-degree',
+    q:'What is the ETDRS classification of diabetic retinopathy?',
+    opts:['Normal or mild NPDR','Moderate NPDR','Severe NPDR','Proliferative DR (PDR)'],
+    gold:3,
+    steps:[
+      {t:'Optic disc evaluation',txt:'Neovascularization of the disc (NVD) is present. Cup-to-disc ratio is 0.4 (normal). NVD presence indicates proliferative disease.'},
+      {t:'Vascular analysis',txt:'Venous dilation and beading observed. Dot and flame hemorrhages are distributed across all four quadrants.'},
+      {t:'ETDRS criteria',txt:'NVD exceeding 1/4 disc area plus preretinal hemorrhage meets high-risk PDR criteria. NPDR categories are excluded by neovascularization.'},
+      {t:'Final answer',txt:'NVD with high-risk features confirms proliferative diabetic retinopathy. The answer is D.'},
+    ]
+  }
+];
+
+let curCase=0, solutions=[], mcResults=[], dataset=[];
+let correctAnswer='B';
+
+// ════════════════════════════
+// INIT
+// ════════════════════════════
+function init(){
+  renderNav(1);
+  document.getElementById('caseChips').innerHTML=CASES.map((c,i)=>
+    `<div class="chip ${i===0?'active':''}" onclick="selectCase(${i},this)">${c.name} (${c.meta.split(',')[0]})</div>`
+  ).join('');
+  loadCase(0);
+}
+
+function loadCase(idx){
+  curCase=idx;
+  const c=CASES[idx];
+  document.getElementById('caseName').textContent=c.name;
+  document.getElementById('caseMeta').textContent=c.meta;
+  document.getElementById('qField').value=c.q;
+  correctAnswer='ABCD'[c.gold];
+  document.getElementById('mcqList').innerHTML=c.opts.map((o,i)=>{
+    const L='ABCD'[i];
+    const isGold=i===c.gold;
+    return `<div class="mcq-item">
+      <div class="mcq-letter ${isGold?'answer':''}">${L}</div>
+      <span style="font-size:13px;flex:1;${isGold?'font-weight:600;':'color:var(--c-text-secondary);'}">${o}</span>
+      ${isGold?'<span class="label-tag pos" style="margin-left:auto;">Gold answer</span>':''}
+    </div>`;
+  }).join('');
+  solutions=[];mcResults=[];
+  document.getElementById('solOutput').style.display='none';
+  document.getElementById('btn12').disabled=true;
+}
+
+function selectCase(idx,el){
+  document.querySelectorAll('#caseChips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  loadCase(idx);
+}
+
+// Gold answer is fixed from the dataset, no user interaction needed
+
+// ════════════════════════════
+// STEP 1: GENERATION
+// ════════════════════════════
+async function generateSolutions(){
+  const n=parseInt(document.getElementById('solN').value);
+  const model=document.getElementById('modelSel').value;
+  const c=CASES[curCase];
+  const st=document.getElementById('genStatus');
+  st.innerHTML='<span class="spinner"><i></i><i></i><i></i></span> Generating...';
+  solutions=[];
+  document.getElementById('solOutput').style.display='none';
+
+  for(let i=0;i<n;i++){
+    await sleep(400+Math.random()*250);
+    solutions.push(makeSol(c,i,n));
+    st.innerHTML=`<span class="spinner"><i></i><i></i><i></i></span> ${i+1}/${n}`;
+  }
+  st.textContent=`${n} solutions generated (${model})`;
+  document.getElementById('solMeta').textContent=`${n} solutions, each ending with A/B/C/D. Gold answer: ${correctAnswer}`;
+  renderSolTabs();
+  document.getElementById('solOutput').style.display='block';
+  document.getElementById('btn12').disabled=false;
+}
+
+function makeSol(c,idx,total){
+  const isCorrect=idx<Math.ceil(total*[1,.75,.5,.25][Math.min(idx,3)]);
+  const wrongLetters='ABCD'.split('').filter(l=>l!==correctAnswer);
+  const steps=c.steps.map((s,si)=>{
+    let txt=s.txt;
+    if(!isCorrect&&si===c.steps.length-1){
+      const wl=wrongLetters[idx%wrongLetters.length];
+      const wIdx='ABCD'.indexOf(wl);
+      txt=`The findings are nonspecific. ${c.opts[wIdx]||'Alternative diagnosis'} is most likely. The answer is ${wl}.`;
+    }
+    return {t:s.t,txt,correct:!(!isCorrect&&si===c.steps.length-1)};
+  });
+  return {
+    id:`sol_${idx+1}`,isCorrect,
+    finalAnswer:isCorrect?correctAnswer:wrongLetters[idx%wrongLetters.length],
+    steps
+  };
+}
+
+function renderSolTabs(){
+  document.getElementById('solTabs').innerHTML=solutions.map((s,i)=>
+    `<div class="switcher-item ${i===0?'active':''}" onclick="showSol(${i},this)">Solution ${i+1}</div>`
+  ).join('');
+  showSolContent(0);
+}
+function showSol(idx,el){
+  document.querySelectorAll('#solTabs .switcher-item').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  showSolContent(idx);
+}
+function showSolContent(idx){
+  const sol=solutions[idx];
+  const c=CASES[curCase];
+  const html=sol.steps.map((s,i)=>`
+    <div class="structured-list">
+      <div class="sl-header"><div class="sl-index">${i+1}</div><div class="sl-title">${s.t}</div></div>
+      <div class="sl-body">${s.txt}</div>
+    </div>`).join('')+
+    `<div class="answer-block">
+      <div class="answer-indicator ${sol.isCorrect?'correct':'incorrect'}">${sol.finalAnswer}</div>
+      <div>
+        <div style="font-size:13px;font-weight:600;">Final answer: ${sol.finalAnswer} &mdash; ${c.opts['ABCD'.indexOf(sol.finalAnswer)]||''}</div>
+        <div style="font-size:12px;color:var(--c-text-helper);margin-top:2px;">Gold: ${correctAnswer} &middot; ${sol.isCorrect?'Correct':'Incorrect'}</div>
+      </div>
+    </div>`;
+  document.getElementById('solContent').innerHTML=html;
+}
+
+// ════════════════════════════
+// STEP 2: MONTE CARLO
+// ════════════════════════════
+function updateThr(){
+  const v=parseInt(document.getElementById('thrV').value);
+  const k=parseInt(document.getElementById('rollK').value);
+  const lbl=v===0?'score > 0':v===8?'score > 0.5':`score >= ${v}/${k}`;
+  document.getElementById('thrLbl').textContent=lbl;
+  document.getElementById('thrDisplay').textContent=lbl;
+}
+
+async function runMC(){
+  if(!solutions.length){alert('Generate solutions first.');return;}
+  const k=parseInt(document.getElementById('rollK').value);
+  const sol=solutions[0];
+  document.getElementById('mcInfo').innerHTML=
+    `Solution 1: ${sol.steps.length} steps &times; ${k} rollouts. Pattern: <span style="font-family:var(--font-mono);">/([ABCD])$/</span> &rarr; Gold: <strong>${correctAnswer}</strong>`;
+  document.getElementById('mcOutput').style.display='block';
+  mcResults=[];
+
+  document.getElementById('mcSteps').innerHTML=sol.steps.map((s,si)=>`
+    <div class="mc-block">
+      <div class="mc-header">
+        <div class="sl-index">${si+1}</div>
+        <div style="flex:1;font-size:13px;font-weight:600;">${s.t}</div>
+        <div id="mcBadge${si}"></div>
+      </div>
+      <div class="mc-body">
+        <div style="font-size:11px;color:var(--c-text-helper);font-family:var(--font-mono);margin-bottom:var(--spacing-03);">
+          extract &rarr; match(${correctAnswer}) &rarr; count
+        </div>
+        <div class="mc-grid" id="mcG${si}">
+          ${Array(k).fill().map((_,i)=>`<div class="mc-cell running" id="c${si}_${i}">-</div>`).join('')}
+        </div>
+        <div class="score-track"><div class="score-bar high" id="sb${si}" style="width:0%"></div></div>
+        <div class="score-meta"><span id="sm1_${si}">0/${k}</span><span id="sm2_${si}">0.00</span></div>
+      </div>
+    </div>`).join('');
+
+  for(let si=0;si<sol.steps.length;si++){
+    const isC=sol.steps[si].correct;
+    const rate=isC?0.65+Math.random()*.3:Math.random()*.18;
+    let cnt=0;
+    for(let ri=0;ri<k;ri++){
+      await sleep(55);
+      const hit=Math.random()<rate;
+      if(hit) cnt++;
+      const cell=document.getElementById(`c${si}_${ri}`);
+      const L=hit?correctAnswer:'ABCD'.split('').filter(l=>l!==correctAnswer)[ri%3];
+      cell.className=`mc-cell ${hit?'hit':'miss'}`;
+      cell.textContent=L;
+      const sc=cnt/(ri+1);
+      const pct=sc*100;
+      document.getElementById(`sb${si}`).style.width=pct+'%';
+      document.getElementById(`sb${si}`).className=`score-bar ${pct>60?'high':pct>30?'mid':'low'}`;
+      document.getElementById(`sm1_${si}`).textContent=`${cnt}/${ri+1}`;
+      document.getElementById(`sm2_${si}`).textContent=sc.toFixed(2);
+    }
+    const finalSc=cnt/k;
+    const thr=parseInt(document.getElementById('thrV').value)/k;
+    const isPos=finalSc>(thr||0);
+    document.getElementById(`mcBadge${si}`).innerHTML=
+      `<span class="label-tag ${isPos?'pos':'neg'}">${isPos?'+':String.fromCharCode(8722)}</span>`;
+    mcResults.push({si,title:sol.steps[si].t,text:sol.steps[si].txt,cnt,k,score:finalSc,label:isPos?'+':'-'});
+  }
+  document.getElementById('btn23').disabled=false;
+}
+
+// ════════════════════════════
+// STEP 3: LABELING
+// ════════════════════════════
+function buildLabelTable(){
+  if(!mcResults.length) return;
+  const c=CASES[curCase];
+  const rows=mcResults.map(r=>`
+    <tr>
+      <td style="font-weight:600;color:var(--c-text-helper);">Step ${r.si+1}</td>
+      <td>${r.title}</td>
+      <td style="text-align:center;font-family:var(--font-mono);">${r.cnt}/${r.k}</td>
+      <td style="text-align:center;font-weight:600;font-family:var(--font-mono);">${r.score.toFixed(3)}</td>
+      <td style="text-align:center;"><span class="label-tag ${r.label==='+'?'pos':'neg'}">${r.label==='+'?'+':String.fromCharCode(8722)}</span></td>
+    </tr>`).join('');
+
+  document.getElementById('labelOutput').innerHTML=`
+    <div class="notification notification-success">
+      <div><strong>Gold:</strong> ${correctAnswer} &mdash; ${CASES[curCase].opts['ABCD'.indexOf(correctAnswer)]}<br>
+      <strong>Verification:</strong> regex extraction &rarr; exact match (automated)</div>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>#</th><th>Step</th><th>Correct</th><th>Score</th><th>Label</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  const pos=mcResults.filter(r=>r.label==='+').length;
+  const neg=mcResults.length-pos;
+  document.getElementById('statBoxes').innerHTML=`
+    <div class="stat-tile"><div class="stat-value green">${pos}</div><div class="stat-desc">Positive (+)</div></div>
+    <div class="stat-tile"><div class="stat-value red">${neg}</div><div class="stat-desc">Negative (-)</div></div>
+    <div class="stat-tile"><div class="stat-value blue">${mcResults.length}</div><div class="stat-desc">Total steps</div></div>
+    <div class="stat-tile"><div class="stat-value blue">${(pos/mcResults.length*100).toFixed(0)}%</div><div class="stat-desc">Positive rate</div></div>`;
+  document.getElementById('labelStatsPanel').style.display='block';
+  document.getElementById('btn34').disabled=false;
+}
+
+// ════════════════════════════
+// STEP 4: DATASET
+// ════════════════════════════
+function addToDataset(){
+  const c=CASES[curCase];
+  const id=`med_${Date.now()}`;
+  solutions.forEach((sol,si)=>{
+    const stepLabels=sol.steps.map((s,i)=>({
+      step:i+1,title:s.t,text:s.txt,
+      score:mcResults[i]?.score??(s.correct?.7:.05),
+      label:mcResults[i]?.label??(s.correct?'+':'-'),
+    }));
+    dataset.push({
+      id:`${id}_sol${si+1}`,
+      case_type:c.name,modality:c.meta,
+      question:document.getElementById('qField').value,
+      options:{A:c.opts[0],B:c.opts[1],C:c.opts[2],D:c.opts[3]},
+      gold_answer:correctAnswer,
+      solution_num:si+1,
+      steps:stepLabels,
+      final_label:sol.isCorrect?'+':'-',
+      conversations:[
+        {from:'system',value:'You are a medical AI assistant. Analyze the medical image step by step, then provide your answer as A, B, C, or D.'},
+        {from:'human',value:`### Question:\n${c.q}\n\nOptions:\nA) ${c.opts[0]}\nB) ${c.opts[1]}\nC) ${c.opts[2]}\nD) ${c.opts[3]}\n\n### Solution Process:\n${stepLabels.map(s=>`Step ${s.step} - ${s.title}:\n${s.text}`).join('\n\n')}`},
+        {from:'gpt',value:sol.isCorrect?'+':'-'}
+      ]
+    });
+  });
+  goStep(4);
+}
+
+function renderDataset(){
+  const pos=dataset.filter(d=>d.final_label==='+').length;
+  const neg=dataset.length-pos;
+  const cases=[...new Set(dataset.map(d=>d.case_type))].length;
+  document.getElementById('dsStats').innerHTML=`
+    <div class="stat-tile"><div class="stat-value blue">${dataset.length}</div><div class="stat-desc">Samples</div></div>
+    <div class="stat-tile"><div class="stat-value green">${pos}</div><div class="stat-desc">Positive</div></div>
+    <div class="stat-tile"><div class="stat-value red">${neg}</div><div class="stat-desc">Negative</div></div>
+    <div class="stat-tile"><div class="stat-value blue">${cases}</div><div class="stat-desc">Cases</div></div>`;
+
+  document.getElementById('dsList').innerHTML=dataset.map((d,i)=>`
+    <div class="viewer-row ${i===0?'active':''}" onclick="selectDs(${i},this)">
+      <div class="viewer-row-indicator ${d.final_label==='+'?'pos':'neg'}"></div>
+      <div style="flex:1;overflow:hidden;">
+        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.case_type} / Sol ${d.solution_num}</div>
+        <div style="font-size:11px;color:var(--c-text-helper);">Gold: ${d.gold_answer} &middot; ${d.steps.length} steps</div>
+      </div>
+    </div>`).join('');
+
+  if(dataset.length>0) showDsDetail(0);
+}
+
+function selectDs(idx,el){
+  document.querySelectorAll('.viewer-row').forEach(r=>r.classList.remove('active'));
+  el.classList.add('active');
+  showDsDetail(idx);
+}
+
+function showDsDetail(idx){
+  const d=dataset[idx];
+  const stepsHtml=d.steps.map(s=>`
+    <div class="step-item ${s.label==='+'?'pos':'neg'}">
+      <div style="flex-shrink:0;font-weight:600;font-size:12px;color:var(--c-text-helper);width:44px;">Step ${s.step}</div>
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:12px;">${s.title}</div>
+        <div style="font-size:12px;color:var(--c-text-secondary);margin-top:2px;">${s.text.substring(0,100)}...</div>
+      </div>
+      <div style="flex-shrink:0;text-align:right;">
+        <span class="label-tag ${s.label==='+'?'pos':'neg'}">${s.label==='+'?'+':String.fromCharCode(8722)}</span>
+        <div style="font-size:10px;color:var(--c-text-helper);font-family:var(--font-mono);margin-top:2px;">${s.score.toFixed(2)}</div>
+      </div>
+    </div>`).join('');
+
+  const optsHtml=Object.entries(d.options).map(([k,v])=>
+    `<div style="display:flex;align-items:center;gap:var(--spacing-03);padding:3px 0;font-size:12px;">
+      <div class="mcq-letter ${k===d.gold_answer?'answer':''}" style="width:22px;height:22px;font-size:10px;">${k}</div>
+      <span style="${k===d.gold_answer?'font-weight:600;':''}">${v}</span>
+    </div>`
+  ).join('');
+
+  document.getElementById('dsDetail').innerHTML=`
+    <div class="detail-section">
+      <div class="detail-heading">Case</div>
+      <div style="display:flex;align-items:center;gap:var(--spacing-04);">
+        <span style="font-weight:600;">${d.case_type}</span>
+        <span style="font-size:12px;color:var(--c-text-helper);">${d.modality}</span>
+        <span class="label-tag ${d.final_label==='+'?'pos':'neg'}">${d.final_label==='+'?'Correct':'Incorrect'}</span>
+      </div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-heading">Question</div>
+      <div class="detail-block">${d.question}</div>
+      <div style="margin-top:var(--spacing-03);">${optsHtml}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-heading">Reasoning steps</div>
+      ${stepsHtml}
+    </div>
+    <div>
+      <div class="detail-heading">ID</div>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--c-text-helper);">${d.id}</div>
+    </div>`;
+}
+
+function exportJSON(){
+  if(!dataset.length){alert('No data.');return;}
+  // Include QA metadata if available
+  const exportData = {
+    metadata: {
+      created: new Date().toISOString(),
+      total_samples: dataset.length,
+      qa_review: qaState.completed ? {
+        reviewer: document.getElementById('qaReviewerName').value || 'N/A',
+        specialty: document.getElementById('qaReviewerDept').value,
+        date: document.getElementById('qaDate').value,
+        samples_reviewed: qaState.reviewed,
+        error_rate: qaState.errorRate,
+        threshold: parseInt(document.getElementById('qaThreshold').value),
+        verdict: qaState.errorRate <= parseInt(document.getElementById('qaThreshold').value) ? 'APPROVED' : 'FLAGGED'
+      } : null
+    },
+    samples: dataset
+  };
+  const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`medical_prm_${Date.now()}.json`;
+  a.click();
+}
+
+// ════════════════════════════
+// STEP 5: QA REVIEW
+// ════════════════════════════
+let qaState = { samples: [], reviewed: 0, approved: 0, rejected: 0, errorRate: 0, completed: false };
+
+function initQA() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('qaDate').value = today;
+  document.getElementById('qaTotalCount').textContent = dataset.length;
+  const maxSample = Math.min(10, dataset.length);
+  document.getElementById('qaSampleSize').max = maxSample || 1;
+  if (parseInt(document.getElementById('qaSampleSize').value) > maxSample) {
+    document.getElementById('qaSampleSize').value = maxSample;
+    document.getElementById('qaSampleSizeVal').textContent = maxSample;
+  }
+}
+
+function startQA() {
+  if (!dataset.length) {
+    document.getElementById('qaContent').innerHTML = '<div class="notification notification-warning">No samples in dataset. Complete Steps 1-4 first.</div>';
+    return;
+  }
+
+  const sampleSize = parseInt(document.getElementById('qaSampleSize').value);
+  const threshold = parseInt(document.getElementById('qaThreshold').value);
+
+  // Random sampling without replacement
+  const indices = Array.from({length: dataset.length}, (_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  const sampledIndices = indices.slice(0, Math.min(sampleSize, dataset.length));
+
+  qaState = { samples: sampledIndices.map(i => ({ idx: i, status: 'pending', comment: '' })), reviewed: 0, approved: 0, rejected: 0, errorRate: 0, completed: false };
+
+  document.getElementById('qaGaugeThr').style.left = threshold + '%';
+
+  renderQACards();
+  document.getElementById('qaResultPanel').style.display = 'block';
+  document.getElementById('qaExportPanel').style.display = 'none';
+  document.getElementById('qaApproveBtn').disabled = true;
+  updateQAGauge();
+}
+
+function renderQACards() {
+  const html = qaState.samples.map((s, qi) => {
+    const d = dataset[s.idx];
+    const stepsHtml = d.steps.map(st => `
+      <div style="display:flex;gap:var(--spacing-03);padding:var(--spacing-02) 0;font-size:12px;align-items:flex-start;">
+        <span class="label-tag ${st.label==='+'?'pos':'neg'}" style="flex-shrink:0;">${st.label==='+'?'+':String.fromCharCode(8722)}</span>
+        <span style="font-weight:600;min-width:44px;color:var(--c-text-helper);">Step ${st.step}</span>
+        <span style="color:var(--c-text-secondary);">${st.text.substring(0, 80)}...</span>
+      </div>`).join('');
+
+    return `<div class="qa-card ${s.status}" id="qaCard${qi}">
+      <div class="qa-card-header">
+        <div class="sl-index" style="font-size:10px;">${qi+1}</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;">${d.case_type} / Solution ${d.solution_num}</div>
+          <div style="font-size:11px;color:var(--c-text-helper);">Gold: ${d.gold_answer} &middot; ${d.modality}</div>
+        </div>
+        <span class="label-tag ${d.final_label==='+'?'pos':'neg'}">${d.final_label==='+'?'+':String.fromCharCode(8722)}</span>
+        <div class="qa-status ${s.status==='pending'?'s-pending':s.status==='approved'?'s-approved':'s-rejected'}" id="qaStatus${qi}">${s.status==='pending'?'Pending review':s.status==='approved'?'Approved':'Rejected'}</div>
+      </div>
+      <div class="qa-card-body">
+        <div style="font-size:12px;font-weight:600;color:var(--c-text-secondary);margin-bottom:var(--spacing-03);">Question</div>
+        <div class="detail-block" style="margin-bottom:var(--spacing-04);font-size:12px;">${d.question}</div>
+        <div style="font-size:12px;font-weight:600;color:var(--c-text-secondary);margin-bottom:var(--spacing-03);">Reasoning steps + labels</div>
+        ${stepsHtml}
+        <div style="margin-top:var(--spacing-04);">
+          <span class="form-label">Review comment</span>
+          <input class="form-input" type="text" id="qaComment${qi}" placeholder="Optional: note any issues found" style="height:36px;font-size:12px;">
+        </div>
+        <div class="qa-actions">
+          <button class="btn btn-success btn-sm" onclick="qaDecision(${qi},'approved')">Approve</button>
+          <button class="btn btn-secondary btn-sm" style="border-color:var(--c-danger);color:var(--c-danger);" onclick="qaDecision(${qi},'rejected')">Reject</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('qaContent').innerHTML = `
+    <div style="font-size:12px;font-weight:600;color:var(--c-text-secondary);margin-bottom:var(--spacing-04);">
+      ${qaState.samples.length} samples drawn from ${dataset.length} total
+      (${(qaState.samples.length/dataset.length*100).toFixed(1)}% sample rate)
+    </div>
+    ${html}`;
+}
+
+function qaDecision(qi, status) {
+  const prev = qaState.samples[qi].status;
+  qaState.samples[qi].status = status;
+  qaState.samples[qi].comment = document.getElementById(`qaComment${qi}`).value;
+
+  // Update counts
+  if (prev !== 'pending') {
+    if (prev === 'approved') qaState.approved--;
+    else qaState.rejected--;
+    qaState.reviewed--;
+  }
+  if (status === 'approved') qaState.approved++;
+  else qaState.rejected++;
+  qaState.reviewed++;
+
+  // Update card UI
+  const card = document.getElementById(`qaCard${qi}`);
+  card.className = `qa-card ${status}`;
+  const badge = document.getElementById(`qaStatus${qi}`);
+  badge.className = `qa-status ${status==='approved'?'s-approved':'s-rejected'}`;
+  badge.textContent = status==='approved'?'Approved':'Rejected';
+
+  updateQAGauge();
+}
+
+function updateQAGauge() {
+  const total = qaState.samples.length;
+  const threshold = parseInt(document.getElementById('qaThreshold').value);
+  const errorRate = qaState.reviewed > 0 ? (qaState.rejected / qaState.reviewed * 100) : 0;
+  qaState.errorRate = errorRate;
+  const allReviewed = qaState.reviewed === total;
+  qaState.completed = allReviewed;
+
+  // Gauge
+  const fill = document.getElementById('qaGaugeFill');
+  fill.style.width = errorRate + '%';
+  fill.className = `gauge-fill ${errorRate <= threshold ? 'pass' : 'fail'}`;
+  document.getElementById('qaGaugeLabel').textContent = errorRate.toFixed(1) + '%';
+  document.getElementById('qaGaugeLabel').style.color = errorRate <= threshold ? 'var(--c-success)' : 'var(--c-danger)';
+
+  // Summary grid
+  document.getElementById('qaSummaryGrid').innerHTML = `
+    <div class="stat-tile"><div class="stat-value blue">${qaState.reviewed}</div><div class="stat-desc">Reviewed</div></div>
+    <div class="stat-tile"><div class="stat-value green">${qaState.approved}</div><div class="stat-desc">Approved</div></div>
+    <div class="stat-tile"><div class="stat-value red">${qaState.rejected}</div><div class="stat-desc">Rejected</div></div>
+    <div class="stat-tile"><div class="stat-value ${errorRate<=threshold?'green':'red'}">${errorRate.toFixed(1)}%</div><div class="stat-desc">Error rate</div></div>`;
+
+  // Verdict
+  const verdict = document.getElementById('qaVerdict');
+  if (!allReviewed) {
+    verdict.className = 'notification notification-warning';
+    verdict.textContent = `${total - qaState.reviewed} sample(s) remaining. Review all samples to see the verdict.`;
+    document.getElementById('qaApproveBtn').disabled = true;
+    document.getElementById('qaFooterStatus').textContent = `Reviewing: ${qaState.reviewed}/${total}`;
+  } else if (errorRate <= threshold) {
+    verdict.className = 'notification notification-success';
+    verdict.innerHTML = `<strong>PASS</strong> &mdash; Error rate ${errorRate.toFixed(1)}% is within the ${threshold}% threshold. Dataset quality is acceptable.`;
+    document.getElementById('qaApproveBtn').disabled = false;
+    document.getElementById('qaFooterStatus').textContent = 'Review complete: PASS';
+  } else {
+    verdict.className = 'notification notification-warning';
+    verdict.style.borderColor = 'var(--c-danger)';
+    verdict.style.background = 'var(--c-danger-bg)';
+    verdict.innerHTML = `<strong>FAIL</strong> &mdash; Error rate ${errorRate.toFixed(1)}% exceeds the ${threshold}% threshold. Consider revising the LLM prompt or question design, then regenerate.`;
+    document.getElementById('qaApproveBtn').disabled = true;
+    document.getElementById('qaFooterStatus').textContent = 'Review complete: FAIL';
+  }
+}
+
+function approveDataset() {
+  document.getElementById('qaExportPanel').style.display = 'block';
+  const pos = dataset.filter(d => d.final_label === '+').length;
+  const neg = dataset.length - pos;
+  document.getElementById('qaFinalStats').innerHTML = `
+    <div class="stat-tile"><div class="stat-value blue">${dataset.length}</div><div class="stat-desc">Total samples</div></div>
+    <div class="stat-tile"><div class="stat-value green">${pos}</div><div class="stat-desc">Positive</div></div>
+    <div class="stat-tile"><div class="stat-value red">${neg}</div><div class="stat-desc">Negative</div></div>
+    <div class="stat-tile"><div class="stat-value green">${qaState.errorRate.toFixed(1)}%</div><div class="stat-desc">Error rate</div></div>`;
+  document.getElementById('qaExportPanel').scrollIntoView({ behavior: 'smooth' });
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+init();
+</script>
+</body>
+</html>

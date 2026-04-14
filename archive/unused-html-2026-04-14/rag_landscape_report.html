@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG Landscape for Medical Multimodal QA</title>
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --surface:#ffffff;
+      --text:#18202b;
+      --muted:#5f6b7a;
+      --line:#d9e1ea;
+      --blue:#1864ab;
+      --blue-soft:#e7f1fb;
+      --green:#2b8a3e;
+      --green-soft:#ebfbee;
+      --amber:#b26a00;
+      --amber-soft:#fff4e6;
+      --red:#c92a2a;
+      --red-soft:#fff5f5;
+      --shadow:0 10px 30px rgba(24,32,43,.08);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: "Segoe UI", "Pretendard", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top right, #dbeafe 0, transparent 28%),
+        radial-gradient(circle at top left, #ecfccb 0, transparent 24%),
+        var(--bg);
+      color:var(--text);
+      line-height:1.65;
+    }
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:40px 22px 80px;
+    }
+    .hero{
+      background:linear-gradient(135deg,#0f172a,#1d4ed8 62%,#38bdf8);
+      color:#fff;
+      padding:34px 34px 28px;
+      border-radius:26px;
+      box-shadow:var(--shadow);
+      margin-bottom:26px;
+    }
+    .eyebrow{
+      display:inline-block;
+      font-size:12px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      opacity:.8;
+      margin-bottom:10px;
+    }
+    h1{
+      margin:0 0 10px;
+      font-size:34px;
+      line-height:1.18;
+    }
+    .hero p{
+      margin:0;
+      max-width:860px;
+      color:rgba(255,255,255,.9);
+      font-size:15px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(12,1fr);
+      gap:18px;
+    }
+    .card{
+      grid-column:span 12;
+      background:var(--surface);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:22px 22px 18px;
+      box-shadow:var(--shadow);
+    }
+    .half{grid-column:span 6}
+    .third{grid-column:span 4}
+    h2{
+      margin:0 0 14px;
+      font-size:20px;
+      line-height:1.3;
+    }
+    h3{
+      margin:0 0 10px;
+      font-size:16px;
+      line-height:1.35;
+    }
+    p{margin:0 0 12px}
+    ul{margin:8px 0 0 18px;padding:0}
+    li{margin:6px 0}
+    .badge{
+      display:inline-block;
+      padding:5px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      margin:0 8px 8px 0;
+    }
+    .b-blue{background:var(--blue-soft);color:var(--blue)}
+    .b-green{background:var(--green-soft);color:var(--green)}
+    .b-amber{background:var(--amber-soft);color:var(--amber)}
+    .b-red{background:var(--red-soft);color:var(--red)}
+    .pillrow{margin-bottom:8px}
+    .timeline{
+      display:grid;
+      gap:10px;
+      margin-top:12px;
+    }
+    .diagram{
+      display:grid;
+      gap:14px;
+      margin-top:14px;
+    }
+    .flow-row{
+      display:flex;
+      gap:10px;
+      align-items:stretch;
+      flex-wrap:wrap;
+    }
+    .flow-box{
+      flex:1 1 140px;
+      min-width:140px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px 14px 12px;
+      background:linear-gradient(180deg,#ffffff,#f8fbff);
+    }
+    .flow-box strong{
+      display:block;
+      margin-bottom:5px;
+      font-size:14px;
+    }
+    .flow-box span{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.45;
+    }
+    .flow-arrow{
+      width:34px;
+      min-height:54px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--blue);
+      font-size:20px;
+      font-weight:700;
+    }
+    .stack{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+      margin-top:14px;
+    }
+    .stack-card{
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:#fbfdff;
+      padding:14px;
+    }
+    .stack-card h4{
+      margin:0 0 8px;
+      font-size:14px;
+    }
+    .stack-card p{
+      margin:0;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .step{
+      border:1px solid var(--line);
+      background:#fbfdff;
+      border-radius:14px;
+      padding:12px 14px;
+    }
+    .step strong{display:block;margin-bottom:4px}
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:14px;
+      margin-top:8px;
+    }
+    th,td{
+      border:1px solid var(--line);
+      padding:10px 12px;
+      vertical-align:top;
+    }
+    th{
+      text-align:left;
+      background:#f8fafc;
+      font-weight:700;
+    }
+    .source{
+      margin-top:10px;
+      padding:10px 12px;
+      border-left:3px solid var(--blue);
+      background:#f8fbff;
+      font-size:13px;
+      color:var(--muted);
+    }
+    a{color:var(--blue);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .callout{
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:14px 16px;
+      margin-top:12px;
+    }
+    .good{background:var(--green-soft)}
+    .warn{background:var(--amber-soft)}
+    .danger{background:var(--red-soft)}
+    .muted{color:var(--muted)}
+    .mini{
+      font-size:13px;
+      color:var(--muted);
+    }
+    .footer{
+      margin-top:22px;
+      font-size:13px;
+      color:var(--muted);
+    }
+    @media (max-width: 980px){
+      .half,.third{grid-column:span 12}
+      h1{font-size:28px}
+      .stack{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Team Brief · April 2026</div>
+      <h1>요즘 RAG는 어떻게 구축하는가</h1>
+      <p>
+        최신 RAG 구조, 핵심 기능, 의료 멀티모달 사례,
+        그리고 <code>visualprm</code>에 바로 적용할 선택지를 한 장으로 정리했습니다.
+      </p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>한눈에 보는 결론</h2>
+        <p>
+          최신 RAG는 단순 top-k 검색이 아닙니다.
+          보통 <strong>routing</strong>, <strong>reranker</strong>,
+          <strong>adaptive selection</strong>, 때로는 <strong>agent loop</strong>까지 포함합니다.
+        </p>
+        <div class="timeline">
+          <div class="step"><strong>1. Route</strong> 질문의 도메인, modality, task type을 먼저 판별한다.</div>
+          <div class="step"><strong>2. Retrieve</strong> dense / sparse / multimodal retriever로 넓게 후보를 가져온다.</div>
+          <div class="step"><strong>3. Rerank</strong> 더 적합한 evidence를 다시 정렬한다.</div>
+          <div class="step"><strong>4. Select</strong> 고정 top-k 대신 adaptive-k로 필요한 만큼만 context를 선택한다.</div>
+          <div class="step"><strong>5. Generate / Judge</strong> reasoner가 근거를 읽고 답하고, 필요하면 critic / judge가 검증한다.</div>
+        </div>
+        <div class="diagram">
+          <div class="flow-row">
+            <div class="flow-box">
+              <strong>Route</strong>
+              <span>domain, modality, task type 분류</span>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box">
+              <strong>Retrieve</strong>
+              <span>dense / sparse / multimodal 검색</span>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box">
+              <strong>Rerank</strong>
+              <span>관련성, 신뢰도, 도메인 적합성 재정렬</span>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box">
+              <strong>Select</strong>
+              <span>adaptive-k로 필요한 근거만 선택</span>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box">
+              <strong>Generate</strong>
+              <span>reasoner / judge가 grounded answer 생성</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card half">
+        <h2>최신 RAG 아키텍처</h2>
+        <h3>요즘 기본 골격</h3>
+        <ul>
+          <li><strong>ingest</strong>: 문서, 리포트, KG, 사례 메모리 수집</li>
+          <li><strong>index</strong>: dense, sparse, metadata 인덱스를 함께 사용</li>
+          <li><strong>route</strong>: 질문에 맞는 검색기를 고름</li>
+          <li><strong>retrieve</strong>: 1차 후보를 넓게 가져옴</li>
+          <li><strong>rerank</strong>: 더 믿을 만한 근거를 다시 정렬</li>
+          <li><strong>adaptive selection</strong>: 필요한 만큼만 context 선택</li>
+          <li><strong>generation</strong>: reasoner가 근거를 읽고 답 생성</li>
+          <li><strong>evaluation</strong>: accuracy 외에 faithfulness도 평가</li>
+        </ul>
+        <div class="source">
+          대표 참고: <a href="https://link.springer.com/article/10.1007/s41019-025-00335-5" target="_blank" rel="noopener noreferrer">Retrieval-Augmented Generation for AI-Generated Content: A Survey (2025)</a>,
+          <a href="https://github.com/HuggingAGI/AwesomeRAGPapers" target="_blank" rel="noopener noreferrer">Awesome RAG Papers</a>
+        </div>
+      </article>
+
+      <article class="card half">
+        <h2>요즘 핵심 기능</h2>
+        <h3>reranker / adaptive retrieval / agentic RAG</h3>
+        <ul>
+          <li><strong>Reranker</strong>: 검색 결과를 다시 정렬</li>
+          <li><strong>Adaptive retrieval</strong>: 상황에 따라 context 개수를 조절</li>
+          <li><strong>Agentic RAG</strong>: 필요하면 다시 검색</li>
+          <li><strong>Hybrid retrieval</strong>: dense + sparse + metadata + KB를 함께 사용</li>
+          <li><strong>Corrective loop</strong>: retrieval이 약하면 query를 다시 만든다</li>
+        </ul>
+        <div class="callout good">
+          <strong>핵심</strong><br>
+          벡터 DB만으로 끝나지 않습니다.
+          <strong>rerank</strong>와 <strong>adaptive selection</strong>이 품질 차이를 만듭니다.
+        </div>
+        <div class="source">
+          관련 참고: <a href="https://github.com/asinghcsu/AgenticRAG-Survey" target="_blank" rel="noopener noreferrer">Agentic RAG Survey</a>,
+          <a href="https://agentic-design.ai/patterns/knowledge-retrieval/advanced-rag" target="_blank" rel="noopener noreferrer">Advanced RAG pattern notes</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Medical Multimodal RAG 사례</h2>
+        <p>
+          쉽게 말하면, 최근 의료 멀티모달 RAG 논문들은
+          “비슷한 자료를 찾아서 그냥 붙인다”보다
+          “어떤 자료를 가져오고, 그중 무엇을 더 믿을지 고른 뒤, 모델이 그 근거를 읽고 답하게 한다”
+          쪽으로 발전하고 있습니다.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>논문</th>
+              <th>무엇을 retrieval했는가</th>
+              <th>핵심 아이디어</th>
+              <th>우리에게 주는 시사점</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>MMed-RAG</strong><br><span class="mini">ICLR 2025</span></td>
+              <td>도메인별 external context</td>
+              <td>domain-aware retrieval + adaptive context selection</td>
+              <td>도메인 라우팅과 adaptive-k가 핵심</td>
+            </tr>
+            <tr>
+              <td><strong>FGRW</strong><br><span class="mini">Information Fusion 2025</span></td>
+              <td>PEIR, ROCO 등 image-text knowledge</td>
+              <td>retrieved knowledge를 다시 가중합</td>
+              <td>검색 후 선택과 fusion이 중요</td>
+            </tr>
+            <tr>
+              <td><strong>MKGF</strong><br><span class="mini">Neurocomputing 2025</span></td>
+              <td>multi-modal medical knowledge graph</td>
+              <td>graph/entity/image 기반 retrieval</td>
+              <td>case-memory 외에 KG source 가치 큼</td>
+            </tr>
+            <tr>
+              <td><strong>MasonNLP at MEDIQA-WV 2025</strong><br><span class="mini">ClinicalNLP 2025</span></td>
+              <td>in-domain textual + visual examples</td>
+              <td>간단한 multimodal example RAG baseline</td>
+              <td>case-memory도 가능하지만 selection이 중요</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout good">
+          <strong>쉽게 정리하면</strong><br>
+          최근 논문들은 “검색해서 붙이기”에서 끝나지 않습니다.
+          보통 도메인에 맞게 검색하고, 다시 정렬하고, 그 근거를 바탕으로 모델이 답하도록 만듭니다.
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Med-PRM과 비슷한 흐름의 연구</h2>
+        <p>
+          완전히 같은 논문은 많지 않지만, 최근에는
+          <strong>retrieval로 근거를 가져오고</strong>,
+          <strong>intermediate reasoning step을 검증하거나 보상하는</strong>
+          연구 흐름이 분명히 보입니다.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>연구</th>
+              <th>핵심 방식</th>
+              <th>Med-PRM과의 관계</th>
+              <th>우리에게 주는 시사점</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Med-PRM</strong><br><span class="mini">2025</span></td>
+              <td>가이드라인/문헌 retrieval + step verification</td>
+              <td>기준점</td>
+              <td>retrieval을 answer generation보다 step 검증에 쓰는 흐름</td>
+            </tr>
+            <tr>
+              <td><strong>MedCEG</strong><br><span class="mini">2025</span></td>
+              <td>critical evidence graph + procedure reward</td>
+              <td>매우 가까움</td>
+              <td>step을 graph/evidence 단위로 관리하는 방향 참고 가능</td>
+            </tr>
+            <tr>
+              <td><strong>Retrieval-Augmented Process Reward Model</strong><br><span class="mini">ACL Findings 2025</span></td>
+              <td>retrieval + PRM으로 reasoning 일반화</td>
+              <td>개념적으로 가까움</td>
+              <td>medical이 아니어도 PRM과 retrieval 결합은 강한 흐름</td>
+            </tr>
+            <tr>
+              <td><strong>Step-wise Verification / Generative Reward 계열</strong><br><span class="mini">2025</span></td>
+              <td>중간 reasoning step마다 검증/보상</td>
+              <td>핵심 문제의식이 비슷함</td>
+              <td>최종 답보다 중간 과정 품질을 보는 방향 강화 가능</td>
+            </tr>
+            <tr>
+              <td><strong>RaR: Retrieval and Reasoning for Radiology QA</strong><br><span class="mini">2025</span></td>
+              <td>retrieval + multi-step reasoning</td>
+              <td>직접적이진 않지만 관련 높음</td>
+              <td>radiology 쪽에서 retrieval과 reasoning을 연결하는 실전 예시</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout warn">
+          <strong>쉽게 말하면</strong><br>
+          요즘 흐름은 “자료를 검색해 답만 잘 맞히자”보다
+          “자료를 검색해 reasoning 과정이 맞는지 확인하자” 쪽으로 확장되고 있습니다.
+        </div>
+        <div class="source">
+          참고:
+          <a href="https://med-prm.github.io/" target="_blank" rel="noopener noreferrer">Med-PRM</a>,
+          <a href="https://arxiv.org/abs/2512.13510" target="_blank" rel="noopener noreferrer">MedCEG</a>,
+          <a href="https://aclanthology.org/2025.findings-acl.444.pdf" target="_blank" rel="noopener noreferrer">Retrieval-Augmented Process Reward Model</a>,
+          <a href="https://arxiv.org/abs/2502.11250" target="_blank" rel="noopener noreferrer">Step-wise Verification</a>,
+          <a href="https://www.nature.com/articles/s41746-025-02250-5" target="_blank" rel="noopener noreferrer">RaR</a>
+        </div>
+      </article>
+
+      <article class="card half">
+        <h2>우리 프로젝트 추천 아키텍처</h2>
+        <div class="timeline">
+          <div class="step"><strong>1. Domain Router</strong> Pathology / Radiology / General 분기</div>
+          <div class="step"><strong>2. Hybrid Retrieval</strong> case-memory + document + optional KG</div>
+          <div class="step"><strong>3. Medical Reranker</strong> modality / question type / domain term 반영</div>
+          <div class="step"><strong>4. Adaptive Context Selection</strong> quality 기반 context 선택</div>
+          <div class="step"><strong>5. Reasoner / Critic</strong> answer 생성 + step quality 평가</div>
+        </div>
+        <div class="stack">
+          <div class="stack-card">
+            <h4>Input Layer</h4>
+            <p>image + question + options + dataset metadata</p>
+          </div>
+          <div class="stack-card">
+            <h4>Routing Layer</h4>
+            <p>specialist와 retrieval policy 결정</p>
+          </div>
+          <div class="stack-card">
+            <h4>Evidence Layer</h4>
+            <p>case-memory + document + optional KG 검색</p>
+          </div>
+          <div class="stack-card">
+            <h4>Selection Layer</h4>
+            <p>medical reranker + adaptive-k로 evidence 정제</p>
+          </div>
+          <div class="stack-card">
+            <h4>Reasoning Layer</h4>
+            <p>reasoner가 근거를 읽고 trace와 answer 생성</p>
+          </div>
+          <div class="stack-card">
+            <h4>Verification Layer</h4>
+            <p>critic / judge가 step quality와 consistency를 확인</p>
+          </div>
+        </div>
+      </article>
+
+    </section>
+
+    <div class="footer">
+      Built for discussion in <code>D:\visualprm</code>. Open this file locally in a browser and use it as a meeting note / design brief.
+    </div>
+  </div>
+</body>
+</html>

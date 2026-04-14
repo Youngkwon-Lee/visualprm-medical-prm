@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VisualPRM 최종 리포트 (대화 기반 + 드롭다운)</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;margin:24px;color:#1f2937;background:#f8fafc}
+    h1,h2{margin:0 0 10px}
+    .sub{color:#64748b;margin-bottom:16px}
+    .card{background:#fff;border:1px solid #dbe2ea;border-radius:12px;padding:14px;margin:12px 0}
+    ul{margin:8px 0 0 18px;line-height:1.5}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{border:1px solid #dbe2ea;padding:8px;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    .ok{color:#166534;font-weight:700}.warn{color:#92400e;font-weight:700}.err{color:#991b1b;font-weight:700}
+    code{background:#eef2f7;padding:2px 6px;border-radius:6px}
+    details{background:#fff;border:1px solid #dbe2ea;border-radius:10px;padding:10px 12px;margin:10px 0}
+    summary{cursor:pointer;font-weight:700;color:#0f172a}
+    .content{margin-top:8px;line-height:1.55}
+  </style>
+</head>
+<body>
+  <h1>VisualPRM 최종 리포트 (실험 스레드 기반)</h1>
+  <div class="sub">작성일: 2026-04-09 · 본 스레드에서 실제 수행/검증한 내용 + 요청한 설명 드롭다운 반영</div>
+
+  <div class="card">
+    <h2>1) 결론 요약</h2>
+    <ul>
+      <li><span class="ok">텍스트+RAG 경로 정상</span> (<code>/agent-answer</code> 200, qdrant/document hit 확인)</li>
+      <li><span class="ok">Gemini VLM 생성 경로 복구</span> (50샘플 평가 완료)</li>
+      <li><span class="err">RunPod SSH exec 불안정</span> (pod 생성은 되나 SSH refused/미할당)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>2) 현재 기능 상태 표</h2>
+    <table>
+      <tr><th>항목</th><th>상태</th><th>근거</th></tr>
+      <tr><td>Dataset 로드/기본 워크플로우</td><td class="ok">정상</td><td>clean start + e2e 루틴 확보</td></tr>
+      <tr><td>Router/Retrieval/Rerank</td><td class="ok">정상</td><td>specialist 분기, retrieval_mode=qdrant 확인</td></tr>
+      <tr><td>Document RAG</td><td class="ok">정상</td><td>document_hits &gt;= 1 확인(여러 케이스)</td></tr>
+      <tr><td>Agent Answer API</td><td class="ok">정상</td><td><code>/agent-answer</code> 200</td></tr>
+      <tr><td>Generate Steps API (VLM 생성)</td><td class="ok">Gemini 정상</td><td>50샘플 실행 완료 (34/50 정답, 평균 13.09s)</td></tr>
+    </table>
+  </div>
+
+  <h2 style="margin-top:18px;">3) 상세 설명 드롭다운 (요청 반영)</h2>
+
+  <details open>
+    <summary>에이전트(specialist)별 역할은 무엇인가?</summary>
+    <div class="content">
+      현재 policy 기준 주요 specialist:
+      <ul>
+        <li><code>general_medical_reasoner</code>: 기본 fallback reasoning</li>
+        <li><code>radiology_reasoner</code>: 영상의학 질문(CT/MRI/X-ray/uptake/pattern 등)</li>
+        <li><code>pathology_reasoner</code>: 병리 질문(nucleus/h&amp;e/histology/atypia 등)</li>
+        <li><code>modality_recognition_reasoner</code>: 영상 modality 인식형 질문</li>
+      </ul>
+      분기 입력: <code>dataset</code>, <code>case_type</code>, <code>modality</code>, <code>question_type</code>, 질문 키워드.
+    </div>
+  </details>
+
+  <details>
+    <summary>RAG는 어떻게 만들어졌나?</summary>
+    <div class="content">
+      <ul>
+        <li>케이스 텍스트(데이터셋/질문/옵션/모달리티 등)를 벡터화</li>
+        <li>기본 임베딩: <code>hash-fallback</code> (외부 API 없이 동작)</li>
+        <li>옵션 임베딩: sentence-transformers (설정시)</li>
+        <li>질문이 오면 유사 케이스 검색 + reranker 정렬 + document 근거 결합</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>qdrant는 어떤 워크플로우로 동작하나?</summary>
+    <div class="content">
+      <ol>
+        <li>서버 시작 시(또는 최초 호출 시) qdrant 컬렉션 생성: <code>medical_vqa_cases</code></li>
+        <li>데이터셋 케이스를 포인트로 upsert (payload: dataset/id/question/options/modality/image_url)</li>
+        <li>질문마다 query vector 생성 후 top-k 검색</li>
+        <li>allowed_datasets, exclude_same_case 필터 적용</li>
+        <li>검색 결과를 rerank 후 최종 reasoning에 투입</li>
+      </ol>
+      현재 운영 모드: <code>RAG_QDRANT_MODE=memory</code>, <code>RAG_AUTO_WARM=1</code> 기준 사용.
+    </div>
+  </details>
+
+  <details>
+    <summary>우리 데이터셋 예시로 설명 (실제 실행 케이스)</summary>
+    <div class="content">
+      예시 케이스: <code>pathvqa_000000</code><br>
+      질문: <code>Is the nucleus enlarged?</code>
+      <ol>
+        <li>입력: pathvqa + 이미지 + options(Yes/No)</li>
+        <li>Router: <code>pathology_reasoner</code>로 분기</li>
+        <li>Retrieval: qdrant에서 유사 케이스 검색</li>
+        <li>Document RAG: 병리 문서 근거 결합
+          <ul>
+            <li>Nuclear enlargement</li>
+            <li>Hyperchromasia and atypia</li>
+          </ul>
+        </li>
+        <li>출력: <code>/agent-answer</code> 200 + final answer + document_hits 반환</li>
+      </ol>
+    </div>
+  </details>
+
+  <details>
+    <summary>VLM 생성 경로 최신 상태 (복구 후 결과)</summary>
+    <div class="content">
+      <ul>
+        <li>Gemini API 키/한도 갱신 후 <code>/generate-steps</code> 재실행 성공</li>
+        <li>PathVQA 50샘플 평가 완료: <b>34/50 (68%)</b></li>
+        <li>평균 지연: <b>13.09s</b></li>
+        <li>비-200 응답 9건은 대부분 JSON 포맷 이탈(파싱 오류) 케이스</li>
+        <li>비교: <code>/agent-answer</code>는 26/50 (52%), 평균 0.18s</li>
+      </ul>
+      결론: Gemini VLM 생성은 다시 동작하며, 정확도는 높지만 응답시간/출력 안정화(JSON 강제)가 추가 과제.
+    </div>
+  </details>
+
+  <details>
+    <summary>RunPod 시도 결과 요약</summary>
+    <div class="content">
+      <ul>
+        <li>A5000/4090/3090 + secure/community 다중 시도</li>
+        <li>pod 생성/RUNNING은 가능</li>
+        <li>SSH pub port 미할당 또는 connection refused 반복</li>
+        <li>모든 테스트 pod stop/remove로 비용 정리 완료</li>
+      </ul>
+    </div>
+  </details>
+
+  <div class="card">
+    <h2>4) 다음 액션</h2>
+    <ol>
+      <li><code>/agent-answer</code> 기반 데모/검증 지속</li>
+      <li>VLM 출력 포맷 안정화(JSON schema 강제, 재시도/후처리 파서 추가)</li>
+      <li>50→100 샘플 확장 평가 및 케이스별 오류 분류</li>
+      <li>RunPod 지원 문의(SSH 포트 증빙 첨부)</li>
+    </ol>
+  </div>
+
+  <div class="sub">파일: D:\visualprm\visualprm_final_report_from_thread_2026-04-09.html</div>
+</body>
+</html>

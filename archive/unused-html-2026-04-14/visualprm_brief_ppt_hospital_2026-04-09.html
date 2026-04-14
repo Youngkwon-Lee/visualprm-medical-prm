@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VisualPRM Brief (Hospital Style)</title>
+  <style>
+    body { margin:0; background:#f4f6f8; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; color:#1f2937; }
+    .deck { padding:24px; display:grid; gap:20px; }
+    .slide { background:#ffffff; border:1px solid #d1d5db; border-radius:12px; min-height:560px; padding:30px; }
+    h1{ font-size:38px; margin:0 0 10px; color:#0f172a; }
+    h2{ font-size:30px; margin:0 0 14px; color:#0f172a; }
+    .sub{ color:#475569; font-size:18px; margin-bottom:16px; }
+    ul{ margin:10px 0 0 20px; font-size:22px; line-height:1.5; }
+    table{ width:100%; border-collapse:collapse; font-size:19px; margin-top:12px; }
+    th,td{ border:1px solid #cbd5e1; padding:10px; text-align:left; }
+    th{ background:#eef2f7; }
+    .ok{ color:#166534; font-weight:700; }
+    .warn{ color:#92400e; font-weight:700; }
+    .err{ color:#991b1b; font-weight:700; }
+    .kpi{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:16px; }
+    .card{ border:1px solid #cbd5e1; border-radius:10px; padding:12px; background:#f8fafc; }
+    .big{ font-size:30px; font-weight:800; color:#0f172a; }
+    .label{ color:#475569; font-size:14px; }
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <section class="slide">
+      <h1>VisualPRM 운영 현황 브리프</h1>
+      <div class="sub">병원 공유용 요약 · 2026-04-09</div>
+      <ul>
+        <li><span class="ok">텍스트+RAG 경로 정상 동작</span></li>
+        <li><span class="warn">VLM 생성 경로는 provider quota 제한</span></li>
+        <li><span class="err">RunPod SSH 실행 경로 불안정</span></li>
+      </ul>
+      <div class="kpi">
+        <div class="card"><div class="big">200</div><div class="label">agent-answer status</div></div>
+        <div class="card"><div class="big">qdrant</div><div class="label">retrieval mode</div></div>
+        <div class="card"><div class="big">2</div><div class="label">document hits (sample)</div></div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <h2>파이프라인 상태</h2>
+      <table>
+        <tr><th>항목</th><th>상태</th><th>비고</th></tr>
+        <tr><td>Route / Specialist</td><td class="ok">정상</td><td>질문 유형별 분기 확인</td></tr>
+        <tr><td>Retrieval + Rerank</td><td class="ok">정상</td><td>qdrant + reranker</td></tr>
+        <tr><td>Document RAG</td><td class="ok">정상</td><td>document_hits 확인</td></tr>
+        <tr><td>VLM 생성</td><td class="warn">제한</td><td>Gemini/OpenAI quota 429</td></tr>
+      </table>
+    </section>
+
+    <section class="slide">
+      <h2>Ablation 결과 (Offline)</h2>
+      <table>
+        <tr><th>샘플 수</th><th>no-RAG acc</th><th>RAG acc</th><th>no-RAG avg score</th><th>RAG avg score</th></tr>
+        <tr><td>20</td><td>0.50</td><td>0.50</td><td>0.451</td><td>0.506</td></tr>
+        <tr><td>50</td><td>0.58</td><td>0.58</td><td>0.456</td><td>0.512</td></tr>
+        <tr><td>100</td><td>0.63</td><td>0.63</td><td>0.459</td><td>0.515</td></tr>
+      </table>
+      <ul>
+        <li>정확도는 동률, step score는 RAG 경로 우세</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>권장 다음 단계</h2>
+      <ul>
+        <li>단기: <span class="ok">agent-answer 중심 데모 지속</span></li>
+        <li>단기: 쿼터 복구 후 VLM 1→2→20 샘플 재검증</li>
+        <li>병행: RunPod 지원 문의(SSH 포트 이슈 증빙)</li>
+      </ul>
+    </section>
+  </div>
+</body>
+</html>

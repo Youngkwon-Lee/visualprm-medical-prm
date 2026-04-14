@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG + Agent Key Points Brief</title>
+  <style>
+    :root{
+      --bg:#f7f8fc;
+      --surface:#ffffff;
+      --text:#18212f;
+      --muted:#5d6977;
+      --line:#dce4ee;
+      --blue:#0f5bd8;
+      --blue-soft:#e6f0ff;
+      --green:#157347;
+      --green-soft:#eafaf1;
+      --amber:#a16207;
+      --amber-soft:#fff6db;
+      --violet:#6d28d9;
+      --violet-soft:#f3e8ff;
+      --shadow:0 12px 28px rgba(24,33,47,.08);
+      --radius:20px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:"Segoe UI","Pretendard",system-ui,sans-serif;
+      background:
+        radial-gradient(circle at top right,#dbeafe 0,transparent 26%),
+        radial-gradient(circle at top left,#dcfce7 0,transparent 24%),
+        var(--bg);
+      color:var(--text);
+    }
+    .wrap{
+      max-width:980px;
+      margin:0 auto;
+      padding:40px 20px 70px;
+    }
+    .hero{
+      background:linear-gradient(135deg,#0f172a,#1d4ed8 70%,#38bdf8);
+      color:#fff;
+      border-radius:28px;
+      padding:32px 30px;
+      box-shadow:var(--shadow);
+      margin-bottom:24px;
+    }
+    .hero h1{
+      margin:0 0 10px;
+      font-size:32px;
+      line-height:1.18;
+    }
+    .hero p{
+      margin:0;
+      font-size:15px;
+      color:rgba(255,255,255,.9);
+      max-width:760px;
+      line-height:1.6;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:18px;
+    }
+    .card{
+      background:var(--surface);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:20px 20px 16px;
+      box-shadow:var(--shadow);
+    }
+    .full{grid-column:1 / -1}
+    h2{
+      margin:0 0 12px;
+      font-size:20px;
+    }
+    ul{
+      margin:0 0 0 18px;
+      padding:0;
+      line-height:1.7;
+    }
+    li{margin:7px 0}
+    .flow{
+      display:flex;
+      gap:10px;
+      align-items:stretch;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+    .box{
+      flex:1 1 140px;
+      min-width:140px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:12px 14px;
+      background:#fbfdff;
+    }
+    .box strong{
+      display:block;
+      margin-bottom:4px;
+      font-size:14px;
+    }
+    .box span{
+      font-size:12px;
+      color:var(--muted);
+    }
+    .arrow{
+      width:28px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--blue);
+      font-size:20px;
+      font-weight:700;
+    }
+    .callout{
+      margin-top:12px;
+      padding:12px 14px;
+      border-radius:16px;
+      font-size:14px;
+      line-height:1.6;
+    }
+    .blue{background:var(--blue-soft);color:#163f9f}
+    .green{background:var(--green-soft);color:#166534}
+    .amber{background:var(--amber-soft);color:#9a3412}
+    .violet{background:var(--violet-soft);color:#5b21b6}
+    .paper-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:14px;
+      margin-top:12px;
+    }
+    .paper-card{
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:16px 15px 14px;
+      background:linear-gradient(180deg,#ffffff,#f9fbff);
+      min-height:100%;
+    }
+    .paper-card h3{
+      margin:0 0 8px;
+      font-size:15px;
+      line-height:1.35;
+    }
+    .paper-meta{
+      display:inline-block;
+      margin-bottom:8px;
+      padding:4px 8px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:700;
+      background:var(--blue-soft);
+      color:var(--blue);
+    }
+    .paper-card p{
+      margin:0;
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.65;
+    }
+    .footer{
+      margin-top:18px;
+      font-size:13px;
+      color:var(--muted);
+    }
+    @media (max-width: 860px){
+      .grid{grid-template-columns:1fr}
+      .hero h1{font-size:28px}
+      .paper-grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>RAG + Agent 활용</h1>
+    </section>
+
+    <section class="grid">
+      <article class="card full">
+        <h2>핵심 구조</h2>
+        <div class="flow">
+          <div class="box"><strong>Route</strong><span>질문의 도메인과 유형을 먼저 나눔</span></div>
+          <div class="arrow">→</div>
+          <div class="box"><strong>Retrieve</strong><span>관련 자료를 넓게 검색</span></div>
+          <div class="arrow">→</div>
+          <div class="box"><strong>Rerank</strong><span>더 믿을 만한 근거만 다시 고름</span></div>
+          <div class="arrow">→</div>
+          <div class="box"><strong>Select</strong><span>필요한 만큼만 context 선택</span></div>
+          <div class="arrow">→</div>
+          <div class="box"><strong>Generate</strong><span>근거를 읽고 모델이 답함</span></div>
+        </div>
+        <div class="callout blue">
+          <strong>의료 이미지 예시: 답 도출용 RAG</strong><br>
+          예를 들어 <em>PathVQA / H&amp;E / “Is the nucleus enlarged?” / Yes-No</em> 문제라면,
+          먼저 pathology 문제로 분류하고, 비슷한 병리 사례를 검색한 뒤, 그중 더 관련 높은 사례만 다시 고르고,
+          필요한 근거만 남겨서 reasoner가 최종 답을 만듭니다.
+        </div>
+        <div class="callout green">
+          <strong>의료 이미지 예시: 풀이과정 검증용 RAG</strong><br>
+          같은 문제에서 모델이 “핵이 커 보이므로 Yes”라고 중간 step을 만들었다면,
+          RAG로 병리 설명 문서나 가이드라인, 유사 근거를 가져와서
+          이 step이 실제 근거와 맞는지 확인하는 방식입니다.
+          즉 이 경우 retrieval은 답을 만드는 데만 쓰이는 게 아니라,
+          reasoning 과정이 타당한지 검증하는 데도 쓰입니다.
+        </div>
+      </article>
+
+      <article class="card full">
+        <h2>논문 사례</h2>
+        <div class="paper-grid">
+          <div class="paper-card">
+            <span class="paper-meta">ICLR 2025</span>
+            <h3>MMed-RAG</h3>
+            <p>분야별로 검색기를 나누고, similarity에 따라 필요한 근거만 고릅니다. domain-aware retrieval과 adaptive context selection을 함께 쓰는 사례입니다.</p>
+          </div>
+          <div class="paper-card">
+            <span class="paper-meta">Information Fusion 2025</span>
+            <h3>FGRW</h3>
+            <p>PEIR, ROCO 같은 image-text knowledge를 검색한 뒤, 그중 어떤 근거를 더 중요하게 볼지 다시 조정해 답변 성능을 높입니다.</p>
+          </div>
+          <div class="paper-card">
+            <span class="paper-meta">Neurocomputing 2025</span>
+            <h3>MKGF</h3>
+            <p>문서 chunk만 쓰지 않고, multi-modal medical knowledge graph를 retrieval source로 씁니다. graph, entity, image 정보를 함께 쓰는 방향입니다.</p>
+          </div>
+          <div class="paper-card">
+            <span class="paper-meta">2025</span>
+            <h3>Med-PRM</h3>
+            <p>retrieval을 최종 답 생성보다 intermediate reasoning step 검증에 더 가깝게 씁니다. 가이드라인과 문헌으로 중간 풀이 과정이 맞는지 확인합니다.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="card full">
+        <h2>우리 현재 방향</h2>
+        <ul>
+          <li>문제를 먼저 분류합니다.</li>
+          <li>Qdrant로 비슷한 사례를 찾습니다.</li>
+          <li>검색 결과를 다시 정렬합니다.</li>
+          <li>필요한 근거만 추려서 씁니다.</li>
+          <li>과정을 UI에서 보여줍니다.</li>
+        </ul>
+        <div class="callout violet">
+          <strong>쉽게 말하면</strong><br>
+          우리도 최신 논문들과 비슷하게, 먼저 고르고, 다시 정렬하고, 그 근거를 바탕으로 답하게 만드는 흐름을 따라가고 있습니다.
+        </div>
+        <div class="callout blue">
+          <strong>우리 UI 보기</strong><br>
+          <a href="http://localhost:8765/app.html" target="_blank" rel="noopener noreferrer">http://localhost:8765/app.html</a>
+        </div>
+      </article>
+
+      <article class="card full">
+        <h2>오픈소스로 바로 가능한 스택</h2>
+        <div class="paper-grid">
+          <div class="paper-card">
+            <span class="paper-meta">Agent</span>
+            <h3>LangGraph</h3>
+            <p>route → retrieve → rerank → reason 같은 agent 흐름을 그래프로 관리하기 좋습니다.</p>
+          </div>
+          <div class="paper-card">
+            <span class="paper-meta">RAG</span>
+            <h3>Haystack / LlamaIndex</h3>
+            <p>retriever, reranker, document ingestion, evaluation까지 빠르게 붙이기 좋습니다.</p>
+          </div>
+          <div class="paper-card">
+            <span class="paper-meta">Vector DB</span>
+            <h3>Qdrant / pgvector</h3>
+            <p>Qdrant는 빠른 실험용, pgvector는 기존 Postgres와 함께 쓰기 좋습니다.</p>
+          </div>
+          <div class="paper-card">
+            <span class="paper-meta">Embedding</span>
+            <h3>BGE / SentenceTransformers / BiomedCLIP</h3>
+            <p>텍스트는 BGE 계열, 이미지나 의료 멀티모달은 BiomedCLIP 같은 후보를 고려할 수 있습니다.</p>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="footer">
+      File: <code>D:\visualprm\rag_keypoints_brief.html</code>
+    </div>
+  </div>
+</body>
+</html>

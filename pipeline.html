@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>VisualPRM 파이프라인</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1a1a1a; }
+.page { max-width: 960px; margin: 0 auto; padding: 48px 24px; }
+h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+.sub { color: #6b7280; font-size: 0.87rem; margin-bottom: 48px; }
+
+/* ── STAGE PIPELINE ─────────────────────────────── */
+.pipeline { display: flex; align-items: stretch; gap: 0; margin-bottom: 60px; }
+
+.stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.stage-box {
+  width: 100%;
+  border-radius: 12px;
+  padding: 20px 14px;
+  text-align: center;
+  border: 2px solid transparent;
+  cursor: default;
+  transition: transform .15s;
+}
+.stage-box:hover { transform: translateY(-3px); }
+
+.stage-icon { font-size: 2rem; margin-bottom: 8px; }
+.stage-title { font-size: 0.92rem; font-weight: 700; margin-bottom: 4px; }
+.stage-sub { font-size: 0.75rem; color: #6b7280; line-height: 1.4; }
+.stage-badge {
+  margin-top: 10px;
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.73rem;
+  font-weight: 600;
+}
+
+.arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  color: #d1d5db;
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  padding-top: 20px;
+}
+
+/* 색상 */
+.s1 .stage-box { background: #eff6ff; border-color: #bfdbfe; }
+.s1 .stage-badge { background: #dbeafe; color: #1d4ed8; }
+
+.s2 .stage-box { background: #f0fdf4; border-color: #bbf7d0; }
+.s2 .stage-badge { background: #dcfce7; color: #15803d; }
+
+.s3 .stage-box { background: #fefce8; border-color: #fde68a; }
+.s3 .stage-badge { background: #fef3c7; color: #b45309; }
+
+.s4 .stage-box { background: #fdf4ff; border-color: #e9d5ff; }
+.s4 .stage-badge { background: #f3e8ff; color: #7e22ce; }
+
+.s5 .stage-box { background: #fff1f2; border-color: #fecdd3; }
+.s5 .stage-badge { background: #ffe4e6; color: #be123c; }
+
+/* ── 선택 비율 ──────────────────────────────────── */
+.selection-wrap { margin-bottom: 60px; }
+h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 2px solid #f3f4f6; }
+
+.bar-chart { margin-bottom: 28px; }
+.bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.bar-label { width: 110px; font-size: 0.82rem; font-weight: 600; flex-shrink: 0; text-align: right; }
+.bar-track { flex: 1; height: 28px; background: #f3f4f6; border-radius: 6px; overflow: hidden; position: relative; }
+.bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 12px; font-size: 0.78rem; font-weight: 600; color: #fff; transition: width .6s ease; }
+.bar-val { font-size: 0.8rem; color: #374151; width: 80px; flex-shrink: 0; }
+
+/* ── Monte Carlo 상세 ───────────────────────────── */
+.mc-section { margin-bottom: 60px; }
+.mc-example { border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+.mc-header { background: #f9fafb; padding: 14px 20px; font-size: 0.85rem; font-weight: 600; border-bottom: 1px solid #e5e7eb; }
+.mc-question { padding: 14px 20px; font-size: 0.83rem; color: #374151; border-bottom: 1px solid #f3f4f6; background: #fffbeb; }
+
+.step-row { display: grid; grid-template-columns: 32px 1fr 220px; align-items: center; gap: 14px; padding: 12px 20px; border-bottom: 1px solid #f9fafb; }
+.step-row:last-child { border: none; }
+.step-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.step-text { font-size: 0.82rem; color: #374151; line-height: 1.5; }
+.step-score-wrap { display: flex; align-items: center; gap: 8px; }
+.mini-cells { display: flex; gap: 3px; flex-wrap: wrap; }
+.cell { width: 14px; height: 14px; border-radius: 3px; }
+.cell.ok  { background: #22c55e; }
+.cell.ng  { background: #f87171; }
+.score-txt { font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+
+.badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+.badge.plus  { background: #dcfce7; color: #166534; }
+.badge.minus { background: #fee2e2; color: #991b1b; }
+
+/* ── 수치 요약 ──────────────────────────────────── */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 48px; }
+.stat-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px 14px; text-align: center; }
+.stat-num { font-size: 1.6rem; font-weight: 800; color: #1d4ed8; }
+.stat-label { font-size: 0.78rem; color: #6b7280; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>VisualPRM 데이터 생성 파이프라인</h1>
+  <p class="sub">arXiv:2503.10291 · OpenGVLab · 팀 스터디용 시각화</p>
+
+  <!-- ── 파이프라인 ── -->
+  <div class="pipeline">
+
+    <div class="stage s1">
+      <div class="stage-box">
+        <div class="stage-icon">📚</div>
+        <div class="stage-title">MMPR v1.1</div>
+        <div class="stage-sub">이미지 + 문제 수집</div>
+        <div class="stage-badge">~100K 문제 선택</div>
+      </div>
+    </div>
+
+    <div class="arrow">›</div>
+
+    <div class="stage s2">
+      <div class="stage-box">
+        <div class="stage-icon">🤖</div>
+        <div class="stage-title">LLM 풀이 생성</div>
+        <div class="stage-sub">InternVL2.5 계열<br>temperature 0.7</div>
+        <div class="stage-badge">문제당 4개 풀이</div>
+      </div>
+    </div>
+
+    <div class="arrow">›</div>
+
+    <div class="stage s3">
+      <div class="stage-box">
+        <div class="stage-icon">🎲</div>
+        <div class="stage-title">Monte Carlo</div>
+        <div class="stage-sub">각 step에서<br>16회 rollout</div>
+        <div class="stage-badge">step당 16회</div>
+      </div>
+    </div>
+
+    <div class="arrow">›</div>
+
+    <div class="stage s4">
+      <div class="stage-box">
+        <div class="stage-icon">🏷️</div>
+        <div class="stage-title">+/− 라벨링</div>
+        <div class="stage-sub">score &gt; 0 → +<br>score = 0 → −</div>
+        <div class="stage-badge">correct 90% / wrong 10%</div>
+      </div>
+    </div>
+
+    <div class="arrow">›</div>
+
+    <div class="stage s5">
+      <div class="stage-box">
+        <div class="stage-icon">✅</div>
+        <div class="stage-title">VisualPRM400K</div>
+        <div class="stage-sub">~40만 샘플<br>~200만 steps</div>
+        <div class="stage-badge">완성</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── MMPR 선택 비율 ── -->
+  <div class="selection-wrap">
+    <h2>MMPR v1.1 → VisualPRM400K 선택 비율</h2>
+
+    <div class="bar-chart">
+      <div class="bar-row">
+        <div class="bar-label">MMPR 전체</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:100%;background:#94a3b8;">3,000,000 문제</div>
+        </div>
+        <div class="bar-val">3,000,000개</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">VisualPRM 사용</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:3.3%;background:#3b82f6;min-width:60px;">3.3%</div>
+        </div>
+        <div class="bar-val">~100,000개</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">미사용</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:96.7%;background:#e2e8f0;color:#6b7280;">2,900,000개</div>
+        </div>
+        <div class="bar-val">2,900,000개</div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-num">~100K</div>
+        <div class="stat-label">선택된 원본 문제 수</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">× 4</div>
+        <div class="stat-label">문제당 생성 풀이 수</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">400K</div>
+        <div class="stat-label">최종 샘플 수</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">2M</div>
+        <div class="stat-label">총 step 수 (라벨 포함)</div>
+      </div>
+    </div>
+
+    <p style="font-size:0.82rem;color:#6b7280;">
+      ※ "문제당 4개 풀이 → 400K 샘플"에서 역산. 논문에 정확한 선택 기준은 미공개.
+    </p>
+  </div>
+
+  <!-- ── Monte Carlo 상세 ── -->
+  <div class="mc-section">
+    <h2>Monte Carlo 라벨링 — 실제 예시</h2>
+    <div class="mc-example">
+      <div class="mc-header">📐 예시: Geometry3K — 평행사변형에서 x 구하기</div>
+      <div class="mc-question">
+        <strong>문제:</strong> Use parallelogram to find x. &nbsp; A. 17 &nbsp; B. 5 &nbsp; C. 10 &nbsp; D. 11 &nbsp;&nbsp;
+        <span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:600;">GT: B (x=5)</span>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="step-row">
+        <div class="step-num" style="background:#3b82f6;">1</div>
+        <div class="step-text">평행사변형의 대변은 같다는 성질을 기억한다.</div>
+        <div class="step-score-wrap">
+          <div class="mini-cells">
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ng"></div><div class="cell ng"></div>
+          </div>
+          <span class="score-txt">14/16 = 0.875</span>
+          <span class="badge plus">+</span>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step-row">
+        <div class="step-num" style="background:#f59e0b;">2</div>
+        <div class="step-text">AB=10, AD=x+6, BC=11, DC=y-7 으로 변수 정의.</div>
+        <div class="step-score-wrap">
+          <div class="mini-cells">
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ng"></div>
+            <div class="cell ng"></div><div class="cell ng"></div><div class="cell ng"></div><div class="cell ng"></div>
+          </div>
+          <span class="score-txt">11/16 = 0.688</span>
+          <span class="badge plus">+</span>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step-row">
+        <div class="step-num" style="background:#22c55e;">3</div>
+        <div class="step-text">AB=DC, AD=BC 관계 적용 (대변 등치).</div>
+        <div class="step-score-wrap">
+          <div class="mini-cells">
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+          </div>
+          <span class="score-txt">16/16 = 1.000</span>
+          <span class="badge plus">+</span>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step-row">
+        <div class="step-num" style="background:#22c55e;">4</div>
+        <div class="step-text">x + 6 = 11 → x = 5 계산.</div>
+        <div class="step-score-wrap">
+          <div class="mini-cells">
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+          </div>
+          <span class="score-txt">16/16 = 1.000</span>
+          <span class="badge plus">+</span>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step-row">
+        <div class="step-num" style="background:#22c55e;">5</div>
+        <div class="step-text">Final answer: B</div>
+        <div class="step-score-wrap">
+          <div class="mini-cells">
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+            <div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div><div class="cell ok"></div>
+          </div>
+          <span class="score-txt">16/16 = 1.000</span>
+          <span class="badge plus">+</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:14px;padding:14px 18px;background:#fef9c3;border-radius:8px;border:1px solid #fde68a;font-size:0.83rem;color:#78350f;">
+      💡 <strong>초록 칸</strong> = 그 rollout이 GT 정답에 도달 &nbsp;|&nbsp;
+      <strong>빨간 칸</strong> = 오답 &nbsp;|&nbsp;
+      16개 중 <strong>1개라도 초록</strong>이면 → <span style="background:#dcfce7;color:#166534;padding:1px 8px;border-radius:10px;font-weight:700;">+</span>
+    </div>
+  </div>
+
+  <p style="color:#9ca3af;font-size:0.78rem;text-align:center;">VisualPRM (arXiv:2503.10291) 기반 팀 스터디 정리 · 2026</p>
+
+</div>
+</body>
+</html>

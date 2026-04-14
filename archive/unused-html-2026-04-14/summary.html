@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VisualPRM 연구 정리</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1a1a1a; line-height: 1.7; }
+  .container { max-width: 860px; margin: 0 auto; padding: 48px 24px; }
+
+  h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+  h2 { font-size: 1.15rem; font-weight: 700; margin: 40px 0 14px; padding-bottom: 6px; border-bottom: 2px solid #e5e7eb; }
+  h3 { font-size: 0.95rem; font-weight: 600; color: #374151; margin: 20px 0 8px; }
+  p  { font-size: 0.93rem; color: #374151; margin-bottom: 10px; }
+
+  .meta { font-size: 0.82rem; color: #9ca3af; margin-bottom: 40px; }
+
+  /* 카드 */
+  .card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px 22px; margin-bottom: 12px; }
+  .card.blue  { border-left: 4px solid #3b82f6; }
+  .card.green { border-left: 4px solid #22c55e; }
+  .card.amber { border-left: 4px solid #f59e0b; }
+  .card.red   { border-left: 4px solid #ef4444; }
+
+  /* 테이블 */
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 12px 0; }
+  th { background: #f3f4f6; text-align: left; padding: 9px 14px; font-weight: 600; border: 1px solid #e5e7eb; }
+  td { padding: 8px 14px; border: 1px solid #e5e7eb; vertical-align: top; }
+  tr:hover td { background: #f9fafb; }
+
+  /* 코드 */
+  pre  { background: #1e1e2e; color: #cdd6f4; border-radius: 8px; padding: 16px 20px; font-size: 0.82rem; overflow-x: auto; margin: 10px 0; line-height: 1.6; }
+  code { font-family: 'Fira Code', 'Cascadia Code', monospace; }
+  .inline-code { background: #f3f4f6; padding: 2px 7px; border-radius: 4px; font-size: 0.85em; font-family: monospace; color: #be185d; }
+
+  /* 배지 */
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; margin: 2px; }
+  .badge.green { background: #dcfce7; color: #166534; }
+  .badge.red   { background: #fee2e2; color: #991b1b; }
+  .badge.blue  { background: #dbeafe; color: #1e40af; }
+  .badge.gray  { background: #f3f4f6; color: #374151; }
+
+  /* 플로우 */
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+  .flow-box { background: #fff; border: 1.5px solid #d1d5db; border-radius: 8px; padding: 8px 16px; font-size: 0.85rem; font-weight: 500; }
+  .flow-arrow { color: #9ca3af; font-size: 1.2rem; }
+
+  /* MC 시각화 */
+  .mc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0; }
+  .mc-cell { border-radius: 6px; padding: 8px; text-align: center; font-size: 0.78rem; font-weight: 600; }
+  .mc-correct { background: #dcfce7; color: #166534; }
+  .mc-wrong   { background: #fee2e2; color: #991b1b; }
+
+  /* 스텝 */
+  .step-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+  .step-num  { width: 28px; height: 28px; border-radius: 50%; background: #3b82f6; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; flex-shrink: 0; }
+  .step-text { flex: 1; font-size: 0.88rem; }
+  .step-score { display: flex; align-items: center; gap: 6px; }
+  .score-bar  { width: 80px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 4px; }
+  .score-num  { font-size: 0.78rem; font-weight: 600; color: #374151; width: 50px; }
+
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 36px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>VisualPRM 연구 정리</h1>
+  <p class="meta">arXiv:2503.10291 &nbsp;·&nbsp; OpenGVLab &nbsp;·&nbsp; Mar 2025 &nbsp;·&nbsp; 팀 내부 스터디용</p>
+
+  <!-- ① 3가지 기여 -->
+  <h2>① 논문의 3가지 기여 — 뭐가 다른가?</h2>
+  <table>
+    <tr><th>이름</th><th>역할</th><th>비유</th></tr>
+    <tr><td><strong>VisualPRM400K</strong></td><td>40만 개 학습 데이터셋</td><td>교과서</td></tr>
+    <tr><td><strong>VisualPRM (8B)</strong></td><td>이 데이터로 학습된 PRM 모델</td><td>교사 (채점자)</td></tr>
+    <tr><td><strong>VisualProcessBench</strong></td><td>2,866개 인간 어노테이션 평가셋</td><td>시험지</td></tr>
+  </table>
+
+  <!-- ② 전체 파이프라인 -->
+  <h2>② 데이터셋 생성 파이프라인</h2>
+  <div class="flow">
+    <div class="flow-box">📚 MMPR v1.1<br><small>문제 + 이미지 수집</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">🤖 LLM 풀이 생성<br><small>문제당 4개 풀이</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">🎲 Monte Carlo<br><small>step별 16회 rollout</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">🏷️ +/− 라벨링<br><small>score > 0 이면 +</small></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-box">✅ VisualPRM400K<br><small>~40만 샘플</small></div>
+  </div>
+
+  <!-- ③ MMPR -->
+  <h2>③ MMPR v1.1 — 문제 소스</h2>
+  <div class="card blue">
+    <h3>기본 정보</h3>
+    <table>
+      <tr><th>항목</th><th>내용</th></tr>
+      <tr><td>총 문항 수</td><td>약 <strong>300만 개</strong> (1M~10M 범위)</td></tr>
+      <tr><td>GT 형식</td><td>객관식 알파벳 (A/B/C/D) 또는 숫자</td></tr>
+      <tr><td>도메인</td><td>Geometry3K, CLEVR, MathVision, DVQ 등 38개 서브셋</td></tr>
+      <tr><td>라이선스</td><td>MIT</td></tr>
+    </table>
+  </div>
+  <h3>문제 예시</h3>
+  <pre><code>이미지: 평행사변형 도형 그림
+
+Your task is to answer the question below.
+Give step by step reasoning before you answer,
+and when you're ready to answer, use the format "Final answer: .."
+
+Question:
+Use parallelogram to, find x.
+A. 17   B. 5   C. 10   D. 11
+
+[GT] B  (x = 5)</code></pre>
+
+  <!-- ④ 풀이 생성 프롬프트 -->
+  <h2>④ LLM 풀이 생성 프롬프트</h2>
+  <pre><code>&lt;image&gt;
+Your task is to answer the question below.
+Give step by step reasoning before you answer,
+and when you're ready to answer, please use the format "Final answer: .."
+
+Question:
+{question}</code></pre>
+  <div class="card amber">
+    <p>⚠️ <strong>"Take a deep breath, think step by step..."</strong> 은 v1.1에서 다양성 확보를 위해 추가된 프롬프트 변형 중 하나. 실제 문제 내용이 아니라 <strong>모델 유도 문구</strong>.</p>
+    <p>한 문제당 <strong>4개 풀이</strong> 생성, 각 풀이는 최대 12 steps.</p>
+  </div>
+
+  <!-- ⑤ Monte Carlo 라벨링 -->
+  <h2>⑤ Monte Carlo 라벨링 — 핵심 원리</h2>
+  <h3>작동 방식</h3>
+  <p>Step i까지 완료된 상태에서 <strong>16번</strong> 랜덤으로 계속 풀어보고 정답 비율을 측정.</p>
+
+  <div class="card green">
+    <h3>실제 데이터 예시 (Geometry3K 샘플)</h3>
+    <div class="step-row">
+      <div class="step-num">1</div>
+      <div class="step-text">평행사변형의 대변은 같다는 성질을 기억한다.</div>
+      <div class="step-score">
+        <div class="score-bar"><div class="score-fill" style="width:87.5%;background:#22c55e;"></div></div>
+        <div class="score-num">14/16</div>
+        <span class="badge green">+ 0.875</span>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div class="step-text">AB=10, AD=x+6, BC=11, DC=y-7 으로 정의.</div>
+      <div class="step-score">
+        <div class="score-bar"><div class="score-fill" style="width:68.75%;background:#f59e0b;"></div></div>
+        <div class="score-num">11/16</div>
+        <span class="badge blue">+ 0.688</span>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">3</div>
+      <div class="step-text">AB=DC, AD=BC 관계 적용.</div>
+      <div class="step-score">
+        <div class="score-bar"><div class="score-fill" style="width:100%;background:#22c55e;"></div></div>
+        <div class="score-num">16/16</div>
+        <span class="badge green">+ 1.000</span>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">4</div>
+      <div class="step-text">x + 6 = 11 → x = 5 계산.</div>
+      <div class="step-score">
+        <div class="score-bar"><div class="score-fill" style="width:100%;background:#22c55e;"></div></div>
+        <div class="score-num">16/16</div>
+        <span class="badge green">+ 1.000</span>
+      </div>
+    </div>
+    <div class="step-row" style="border:none;">
+      <div class="step-num">5</div>
+      <div class="step-text">Final answer: B</div>
+      <div class="step-score">
+        <div class="score-bar"><div class="score-fill" style="width:100%;background:#22c55e;"></div></div>
+        <div class="score-num">16/16</div>
+        <span class="badge green">+ 1.000</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>왜 threshold = 0 인가? (> 0.5 아닌가?)</h3>
+  <div class="card red">
+    <table>
+      <tr><th>Threshold</th><th>BoN-8 성능</th><th>문제점</th></tr>
+      <tr><td><strong>> 0 (채택)</strong></td><td><strong>Best</strong></td><td>-</td></tr>
+      <tr><td>> 0.5</td><td>낮아짐</td><td>데이터 너무 줄어듦</td></tr>
+      <tr><td>> 0.7</td><td>더 낮아짐</td><td>incorrect 샘플 거의 없음</td></tr>
+    </table>
+    <p style="margin-top:12px;">💡 score 값 자체가 저장되므로 (<span class="inline-code">0.875, 0.688...</span>) Medical 적용 시 threshold를 높여서 실험 가능.</p>
+  </div>
+
+  <!-- ⑥ 자동화 코드 -->
+  <h2>⑥ 파이프라인 자동화 코드 (핵심 로직)</h2>
+  <pre><code>import openai, re
+
+SOLVE_PROMPT = (
+    "Your task is to answer the question below.\n"
+    "Give step by step reasoning before you answer, "
+    "and when you're ready to answer, use the format 'Final answer: ..'\n\n"
+    "Question:\n{question}"
+)
+
+def generate_solutions(question, n=4):
+    """문제당 n개 풀이 생성"""
+    return [
+        openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": SOLVE_PROMPT.format(question=question)}],
+            temperature=0.7,
+        ).choices[0].message.content
+        for _ in range(n)
+    ]
+
+def split_steps(solution):
+    """풀이 → step 리스트"""
+    return [s.strip() for s in re.split(r'\n\n+', solution.strip()) if s.strip()]
+
+def monte_carlo_rollout(question, steps_so_far, gt_answer, n=16):
+    """step_i까지 왔을 때 n번 계속 풀어보고 score 계산"""
+    context = "\n\n".join(steps_so_far)
+    prompt = f"Question:\n{question}\n\nSolution so far:\n{context}\n\nContinue. End with 'Final answer: ..'"
+    correct = sum(
+        gt_answer.lower() in openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+        ).choices[0].message.content.lower()
+        for _ in range(n)
+    )
+    return {"score": correct/n, "num_mc_correct": correct, "num_mc_total": n, "label": "+" if correct > 0 else "-"}
+
+def label_solution(question, solution, gt_answer):
+    """풀이 전체 step에 Monte Carlo 라벨 부여"""
+    steps = split_steps(solution)
+    return {
+        "question": question,
+        "response": solution,
+        "steps_with_score": [
+            {"step": s, **monte_carlo_rollout(question, steps[:i+1], gt_answer)}
+            for i, s in enumerate(steps)
+        ],
+        "num_mc_sequences": 16
+    }</code></pre>
+
+  <div class="card amber">
+    <h3>Medical 버전 적용 시 바꿔야 할 부분</h3>
+    <table>
+      <tr><th>항목</th><th>일반 VisualPRM</th><th>Medical 버전</th></tr>
+      <tr><td>GT 판단</td><td>문자열 매칭</td><td><strong>LLM judge + 임상의 검수</strong></td></tr>
+      <tr><td>문제 출처</td><td>MMPR (수학)</td><td>MIMIC-IV, 의료 이미지</td></tr>
+      <tr><td>Step 구조</td><td>수식 전개</td><td><strong>증상 → 감별 → 진단 흐름</strong></td></tr>
+      <tr><td>Threshold</td><td>> 0</td><td><strong>실험 필요 (> 0.5 검토)</strong></td></tr>
+    </table>
+  </div>
+
+  <hr>
+  <p style="color:#9ca3af;font-size:0.8rem;text-align:center;">VisualPRM (arXiv:2503.10291) 기반 팀 스터디 정리 · 2025</p>
+
+</div>
+</body>
+</html>

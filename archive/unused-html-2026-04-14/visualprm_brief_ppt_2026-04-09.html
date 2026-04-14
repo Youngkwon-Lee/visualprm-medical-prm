@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VisualPRM Brief PPT</title>
+  <style>
+    body { margin:0; background:#0b1020; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; color:#fff; }
+    .deck { padding:24px; display:grid; gap:24px; }
+    .slide { background:linear-gradient(160deg,#121a33,#0f1428); border:1px solid #2a355f; border-radius:20px; min-height:620px; padding:36px; box-shadow:0 12px 30px rgba(0,0,0,.25); }
+    h1,h2{ margin:0 0 16px; }
+    h1{ font-size:44px; }
+    h2{ font-size:34px; }
+    .sub{ color:#b9c4ff; font-size:20px; margin-bottom:20px; }
+    ul{ margin:12px 0 0 22px; font-size:24px; line-height:1.5; }
+    .kpi{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:18px; }
+    .card{ background:#0a1329; border:1px solid #334376; border-radius:14px; padding:14px; }
+    .big{ font-size:34px; font-weight:800; color:#8ee3ff; }
+    .label{ color:#c8d3ff; font-size:15px; }
+    table{ width:100%; border-collapse:collapse; font-size:20px; margin-top:14px; }
+    th,td{ border:1px solid #30406f; padding:10px; text-align:left; }
+    th{ background:#1a264d; }
+    .ok{ color:#7CFC9A; font-weight:700; }
+    .warn{ color:#ffd166; font-weight:700; }
+    .err{ color:#ff8fa3; font-weight:700; }
+    .small{font-size:16px;color:#b7c2ef;}
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <section class="slide">
+      <h1>VisualPRM 운영 현황 브리프</h1>
+      <div class="sub">2026-04-09 · #visualprm 실험 스레드 요약</div>
+      <ul>
+        <li><span class="ok">텍스트+RAG 경로는 안정적으로 동작</span></li>
+        <li><span class="warn">VLM 생성 경로는 provider quota 이슈</span></li>
+        <li><span class="err">RunPod는 pod 생성 가능, SSH exec 경로 불안정</span></li>
+      </ul>
+      <div class="kpi">
+        <div class="card"><div class="big">200</div><div class="label">agent-answer status</div></div>
+        <div class="card"><div class="big">qdrant</div><div class="label">retrieval mode</div></div>
+        <div class="card"><div class="big">2 hits</div><div class="label">document support (sample)</div></div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <h2>현재 파이프라인 상태</h2>
+      <ul>
+        <li>Frontend(app) → API Backend → Router/Retrieval/Rerank → Answer 렌더링</li>
+        <li><code>/agent-answer</code>: <span class="ok">정상</span> (근거 포함 응답)</li>
+        <li><code>/generate-steps</code>: <span class="warn">쿼터 제한으로 차단</span></li>
+      </ul>
+      <table>
+        <tr><th>항목</th><th>상태</th><th>비고</th></tr>
+        <tr><td>Route / Specialist</td><td class="ok">정상</td><td>pathology/radiology 분기 확인</td></tr>
+        <tr><td>Retrieval + Rerank</td><td class="ok">정상</td><td>qdrant + reranker</td></tr>
+        <tr><td>Document RAG</td><td class="ok">정상</td><td>document_hits 확인</td></tr>
+        <tr><td>VLM 생성</td><td class="warn">제한</td><td>Gemini/OpenAI quota 429</td></tr>
+      </table>
+    </section>
+
+    <section class="slide">
+      <h2>Ablation 결과 (Offline)</h2>
+      <table>
+        <tr><th>샘플 수</th><th>no-RAG acc</th><th>RAG acc</th><th>no-RAG avg score</th><th>RAG avg score</th></tr>
+        <tr><td>20</td><td>0.50</td><td>0.50</td><td>0.451</td><td>0.506</td></tr>
+        <tr><td>50</td><td>0.58</td><td>0.58</td><td>0.456</td><td>0.512</td></tr>
+        <tr><td>100</td><td>0.63</td><td>0.63</td><td>0.459</td><td>0.515</td></tr>
+      </table>
+      <ul>
+        <li>정확도는 동률, step score는 RAG 경로 우세</li>
+        <li>실사용 메시지: "기능은 안정, 생성 모델 쿼터 복구 후 성능 재확인"</li>
+      </ul>
+    </section>
+
+    <section class="slide">
+      <h2>RunPod 이슈 및 액션</h2>
+      <ul>
+        <li>Pod 생성/RUNNING: 가능</li>
+        <li>SSH exec: connection refused 또는 pub ssh 포트 미할당 반복</li>
+        <li>즉시 비용안전: 테스트 후 stop/remove 완료</li>
+      </ul>
+      <h2 style="margin-top:26px;">다음 단계</h2>
+      <ul>
+        <li>단기: <span class="ok">agent-answer 중심 데모 진행</span></li>
+        <li>단기: Gemini/OpenAI quota 복구 후 VLM 1→2→20 샘플 실행</li>
+        <li>병행: RunPod 지원 문의(SSH 포트 증빙 포함)</li>
+      </ul>
+      <div class="small" style="margin-top:20px;">file: D:\visualprm\visualprm_brief_ppt_2026-04-09.html</div>
+    </section>
+  </div>
+</body>
+</html>

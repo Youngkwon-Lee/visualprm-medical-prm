@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>VisualPRM 상태 리포트 (최신, 2026-04-12)</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;margin:24px;background:#f8fafc;color:#1f2937}
+    h1,h2{margin:0 0 10px}
+    .sub{color:#64748b;margin-bottom:16px}
+    .card{background:#fff;border:1px solid #dbe2ea;border-radius:12px;padding:14px;margin:12px 0}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{border:1px solid #dbe2ea;padding:8px;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    ul,ol{margin:8px 0 0 18px;line-height:1.5}
+    .ok{color:#166534;font-weight:700}.warn{color:#92400e;font-weight:700}.err{color:#991b1b;font-weight:700}
+    code{background:#eef2f7;padding:2px 6px;border-radius:6px}
+  </style>
+</head>
+<body>
+  <h1>VisualPRM 상태 리포트 (최신)</h1>
+  <div class="sub">기준: 2026-04-12 / 본 스레드 실험 결과 반영</div>
+
+  <div class="card">
+    <h2>1) 이번 사이클 핵심 결론</h2>
+    <ul>
+      <li><span class="ok">안정성 개선:</span> baseline(<code>/generate-steps</code>) 500 하드 실패를 fallback 200으로 복구</li>
+      <li><span class="warn">성능:</span> baseline vs rag 정확도 차이 없음 (0.50 vs 0.50)</li>
+      <li><span class="err">병목:</span> 예측이 option 0으로 붕괴(0-class collapse) 지속</li>
+      <li><span class="warn">의미:</span> retrieval은 동작하지만 최종 선택기(critic)가 약함 → 팀원 PRM 연결 필요</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>2) 현재 파이프라인(2026-04-12)</h2>
+    <ol>
+      <li>질문/옵션/이미지 입력</li>
+      <li>Policy + specialist 라우팅</li>
+      <li>Qdrant retrieval + score gating(<code>retrieval_min_score</code>)</li>
+      <li><code>/agent-answer</code> 후보 생성(BoN) + 선택(<code>selection_mode=model|prm</code>)</li>
+      <li>응답 로깅: <code>decision_source</code>, <code>candidate_scores</code>, <code>pred_dist</code></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>3) 실험 결과 요약</h2>
+    <table>
+      <tr><th>실험</th><th>결과</th><th>해석</th></tr>
+      <tr>
+        <td>RAG vs Baseline (총 20샘플)</td>
+        <td>
+          baseline_acc=0.50, rag_acc=0.50<br/>
+          baseline_latency=14.981s, rag_latency=15.221s<br/>
+          errors=0/0, pred_dist 둘 다 0:20, 1:0
+        </td>
+        <td>정확도 이득 없음, 0쏠림 유지</td>
+      </tr>
+      <tr>
+        <td>PRM mode compare (총 10샘플)</td>
+        <td>
+          baseline_acc=0.50 / rag_model_acc=0.50 / rag_prm_acc=0.50<br/>
+          <code>prm_select</code> 적용 10/10 확인<br/>
+          pred_dist: 모두 0:10, 1:0
+        </td>
+        <td>PRM 선택 경로는 작동하지만 surrogate 점수로는 개선 미미</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>4) 오늘 반영된 코드 변경(커밋)</h2>
+    <ul>
+      <li><code>f60da14</code>: baseline fallback/APIError 복구 + retrieval gating + pred 분포 지표</li>
+      <li><code>a6b2ffb</code>: BoN 후보생성 + <code>selection_mode=prm</code> 도입</li>
+      <li><code>bc579be</code>: diversity penalty + yes/no retrieval calibration</li>
+      <li><code>177d926</code>: full experiment log 문서화</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>5) 다음 액션(고정)</h2>
+    <ol>
+      <li>팀원 PRM 모델 API/함수 스펙 확정</li>
+      <li>surrogate PRM score → real PRM score 교체</li>
+      <li>동일 샘플로 재평가: rag_model vs rag_prm_real</li>
+      <li>지표: accuracy / latency / error / pred_dist / decision_source</li>
+    </ol>
+  </div>
+
+  <div class="sub">관련 로그: <code>D:\visualprm\EXPERIMENT_LOG_2026-04-12.md</code></div>
+</body>
+</html>

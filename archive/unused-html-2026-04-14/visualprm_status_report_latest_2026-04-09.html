@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>VisualPRM 상태 리포트 (최신)</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;margin:24px;background:#f8fafc;color:#1f2937}
+    h1,h2{margin:0 0 10px}
+    .sub{color:#64748b;margin-bottom:16px}
+    .card{background:#fff;border:1px solid #dbe2ea;border-radius:12px;padding:14px;margin:12px 0}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{border:1px solid #dbe2ea;padding:8px;text-align:left;vertical-align:top}
+    th{background:#f1f5f9}
+    ul,ol{margin:8px 0 0 18px;line-height:1.5}
+    .ok{color:#166534;font-weight:700}.warn{color:#92400e;font-weight:700}.err{color:#991b1b;font-weight:700}
+    code{background:#eef2f7;padding:2px 6px;border-radius:6px}
+  </style>
+</head>
+<body>
+  <h1>VisualPRM 상태 리포트 (최신)</h1>
+  <div class="sub">기준: 2026-04-09 / 본 스레드 실험 결과 반영</div>
+
+  <div class="card">
+    <h2>1) 현재 워크플로우 (운영 기준)</h2>
+    <ol>
+      <li>문제 입력 (dataset/question/options/image_url)</li>
+      <li>Policy 생성 + specialist 라우팅</li>
+      <li>qdrant retrieval + rerank + document support 결합</li>
+      <li><code>/agent-answer</code>에서 step reasoning + 최종 답변 생성</li>
+      <li>UI에 final answer + step + evidence 표시</li>
+    </ol>
+    <p><b>핵심 변경:</b> 이제 <code>agent-answer</code>도 Gemini step 생성 경로를 사용(기존 fallback-only 아님).</p>
+  </div>
+
+  <div class="card">
+    <h2>2) 파이프라인 구조 요약</h2>
+    <ul>
+      <li><b>specialist:</b> general / radiology / pathology / modality_recognition</li>
+      <li><b>RAG:</b> 케이스 벡터 검색(qdrant) + 문서 근거(document hits)</li>
+      <li><b>qdrant:</b> <code>medical_vqa_cases</code> 컬렉션, memory 모드, auto-warm</li>
+      <li><b>생성 모델:</b> Gemini(현재 복구 완료)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>2-1) 사용한 툴/컴포넌트</h2>
+    <table>
+      <tr><th>구분</th><th>사용 툴/모듈</th><th>현재 설정/역할</th></tr>
+      <tr>
+        <td>벡터 DB</td>
+        <td><b>Qdrant</b> (<code>qdrant-client</code>)</td>
+        <td><code>RAG_QDRANT_MODE=memory</code>, 컬렉션 <code>medical_vqa_cases</code>, 케이스 검색 top-k</td>
+      </tr>
+      <tr>
+        <td>임베딩</td>
+        <td><b>sentence-transformers: BAAI/bge-small-en-v1.5</b></td>
+        <td>현재 전환 완료 (기존 hash-fallback에서 업그레이드)</td>
+      </tr>
+      <tr>
+        <td>생성 LLM/VLM</td>
+        <td><b>Gemini API</b> (OpenAI-compatible endpoint)</td>
+        <td><code>gemini-2.5-flash</code>, step 생성/최종 판단</td>
+      </tr>
+      <tr>
+        <td>백엔드</td>
+        <td><b>Flask</b> (<code>api_backend.py</code>)</td>
+        <td><code>/generate-steps</code>, <code>/agent-answer</code> 엔드포인트 제공</td>
+      </tr>
+      <tr>
+        <td>검색/재정렬</td>
+        <td><b>medical_rag.py</b> + <b>medical_reranker.py</b></td>
+        <td>retrieval 결과 재정렬 및 reasoner 입력 품질 보강</td>
+      </tr>
+      <tr>
+        <td>데이터셋</td>
+        <td>PathVQA / VQA-RAD (for_app json)</td>
+        <td>테스트/평가 샘플 소스로 사용</td>
+      </tr>
+      <tr>
+        <td>실험 스크립트</td>
+        <td><code>two_sample_vlm_eval_gemini.py</code></td>
+        <td>n/offset 기반 배치평가, JSON 결과 저장</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>3) 결과 요약</h2>
+    <table>
+      <tr><th>실험</th><th>요약</th><th>비고</th></tr>
+      <tr>
+        <td>PathVQA 50샘플 (이전 파이프라인)</td>
+        <td>
+          <b>/generate-steps:</b> 34/50 (68%), avg 13.09s<br/>
+          <b>/agent-answer:</b> 26/50 (52%), avg 0.18s
+        </td>
+        <td>당시 agent-answer는 fallback 중심</td>
+      </tr>
+      <tr>
+        <td>PathVQA 10샘플 (최신 파이프라인)</td>
+        <td>
+          <b>/generate-steps:</b> 8/10, avg 6.95s<br/>
+          <b>/agent-answer:</b> 6/10, avg 15.95s
+        </td>
+        <td>agent-answer가 Gemini step 생성 경로 사용하도록 변경 후 측정</td>
+      </tr>
+    </table>
+    <ul>
+      <li><span class="warn">Gemini quota는 일시 복구 후 다시 429가 재발(추가 한도/결제 확인 필요)</span></li>
+      <li><span class="warn">일부 JSON 포맷 이탈(비-200) 케이스 존재 → 파서 안정화 필요</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>4) 현재 상태 진단</h2>
+    <ul>
+      <li><span class="ok">기능 구현:</span> E2E 동작 가능, 데모 가능</li>
+      <li><span class="ok">근거성:</span> retrieval + document support 제공</li>
+      <li><span class="warn">안정성:</span> 생성 응답 JSON 이탈 케이스 존재</li>
+      <li><span class="err">인프라:</span> RunPod SSH exec 경로는 여전히 불안정</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>5) 향후 할 일 (우선순위)</h2>
+    <ol>
+      <li><b>JSON 안정화:</b> schema 강제 + 재시도 + 후처리 파서 보강</li>
+      <li><b>재평가:</b> 최신 agent-answer 파이프라인으로 50→100샘플 확장</li>
+      <li><b>오류 분석:</b> 오답/비-200 케이스 유형별 분류 리포트</li>
+      <li><b>하이브리드 전략:</b> 빠른 경로 + 고신뢰 재판정 분기 설계</li>
+      <li><b>RunPod:</b> SSH 포트 이슈 증빙 기반 지원 문의</li>
+    </ol>
+  </div>
+
+  <div class="sub">파일: D:\visualprm\visualprm_status_report_latest_2026-04-09.html</div>
+</body>
+</html>

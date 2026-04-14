@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VLM Results Presentation</title>
+  <style>
+    :root {
+      --bg: #f5f5f3;
+      --card: #ffffff;
+      --ink: #171717;
+      --muted: #5f5f5f;
+      --line: #e5e5e5;
+      --accent: #2f4f4f;
+      --shadow: 0 20px 50px rgba(0, 0, 0, 0.07);
+      --radius: 22px;
+      --deck-width: min(1120px, calc(100vw - 32px));
+      --deck-height: min(720px, calc(100vh - 32px));
+      --font: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(47, 79, 79, 0.08), transparent 28%),
+        linear-gradient(180deg, #fafaf8 0%, #efefeb 100%);
+      overflow: hidden;
+    }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    .deck {
+      width: var(--deck-width);
+      height: var(--deck-height);
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 32px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .slides {
+      height: 100%;
+      display: flex;
+      transition: transform 360ms ease;
+    }
+
+    .slide {
+      width: 100%;
+      flex: 0 0 100%;
+      padding: 42px 46px 88px;
+      display: grid;
+      gap: 24px;
+      align-content: start;
+    }
+
+    .eyebrow {
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2.8rem, 5vw, 4.6rem);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+      max-width: 11ch;
+    }
+
+    h2 {
+      font-size: clamp(1.8rem, 3vw, 2.8rem);
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    h3 {
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+
+    .lede {
+      max-width: 60ch;
+      color: var(--muted);
+      font-size: clamp(1rem, 1.4vw, 1.16rem);
+      line-height: 1.65;
+    }
+
+    .grid-hero,
+    .grid-2,
+    .grid-3,
+    .stats {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid-hero {
+      grid-template-columns: 1.35fr 1fr;
+      align-items: stretch;
+    }
+
+    .grid-2 {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid rgba(47, 79, 79, 0.15);
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: var(--accent);
+      background: rgba(47, 79, 79, 0.07);
+      font-size: 13px;
+      font-weight: 700;
+      width: fit-content;
+    }
+
+    .metric {
+      display: grid;
+      gap: 8px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .metric-value {
+      font-size: clamp(1.8rem, 2.8vw, 3rem);
+      line-height: 1;
+      letter-spacing: -0.05em;
+      font-weight: 800;
+    }
+
+    .metric-copy {
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .list div::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      display: inline-block;
+      margin-right: 10px;
+      border-radius: 999px;
+      background: var(--accent);
+      vertical-align: middle;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 14px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .timeline-index {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: rgba(47, 79, 79, 0.08);
+      color: var(--accent);
+      font-weight: 800;
+    }
+
+    .timeline-copy {
+      display: grid;
+      gap: 4px;
+    }
+
+    .timeline-copy p {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .code {
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      background: #181818;
+      color: #f4f4f4;
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .foot {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      border: 0;
+      background: var(--card);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 10px 15px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid var(--line);
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .dots {
+      display: flex;
+      gap: 7px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: rgba(23, 23, 23, 0.18);
+      transition: transform 180ms ease, background 180ms ease;
+    }
+
+    .dot.active {
+      background: var(--ink);
+      transform: scale(1.3);
+    }
+
+    .note {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 920px) {
+      body {
+        overflow: auto;
+      }
+
+      .deck {
+        width: 100%;
+        height: auto;
+        min-height: calc(100vh - 32px);
+      }
+
+      .slides {
+        display: block;
+        transform: none !important;
+      }
+
+      .slide {
+        min-height: calc(100vh - 32px);
+      }
+
+      .grid-hero,
+      .grid-2,
+      .grid-3,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .foot {
+        position: sticky;
+        bottom: 0;
+        padding-top: 12px;
+        background: linear-gradient(180deg, rgba(245, 245, 243, 0), rgba(245, 245, 243, 0.97) 35%);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="deck">
+      <div class="slides" id="slides">
+        <!-- Slide 1: high-level summary for team kickoff -->
+        <section class="slide">
+          <div class="eyebrow">VisualPRM-Style Update</div>
+          <div class="grid-hero">
+            <div class="card" style="padding: 28px;">
+              <div class="badge">Result Summary</div>
+              <h1>VLM Rollout &<br>Scorer Pilot</h1>
+              <p class="lede">
+                VLM 기반 생성 결과에 Monte Carlo continuation을 붙여,
+                `VisualPRM400K`와 비슷한 구조의 step supervision 샘플셋을 만들었습니다.
+                그리고 그 결과를 step-level scorer pilot 학습까지 실제로 연결했습니다.
+              </p>
+            </div>
+            <div class="card">
+              <div class="stats" style="grid-template-columns: 1fr 1fr;">
+                <div class="metric">
+                  <div class="metric-label">Cases</div>
+                  <div class="metric-value">99</div>
+                  <div class="metric-copy">completed rollout cases</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Solutions</div>
+                  <div class="metric-value">2</div>
+                  <div class="metric-copy">per case</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Rollout K</div>
+                  <div class="metric-value">4</div>
+                  <div class="metric-copy">per prefix</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Rows</div>
+                  <div class="metric-value">198</div>
+                  <div class="metric-copy">case-solution supervision rows</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Slide 2: explain the end-to-end pipeline in plain language -->
+        <section class="slide">
+          <div class="eyebrow">Pipeline</div>
+          <h2>What We Actually Ran</h2>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-index">1</div>
+              <div class="timeline-copy">
+                <h3>Qwen2.5-VL-7B server on RunPod</h3>
+                <p>Image + question + options 입력을 받도록 OpenAI-compatible local path를 VLM 기준으로 구성했습니다.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-index">2</div>
+              <div class="timeline-copy">
+                <h3>PathVQA 100-case batch</h3>
+                <p>case마다 2개 solution을 생성하고, 각 prefix에 대해 rollout 4회를 돌려 expected accuracy를 계산했습니다. 최종 완료 케이스는 99개입니다.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-index">3</div>
+              <div class="timeline-copy">
+                <h3>VisualPRM-style transform</h3>
+                <p>각 case-solution row 안에 full steps와 step별 <code>expected_accuracy</code>, <code>label</code>, <code>rollout_success/total</code>를 보존했습니다.</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-index">4</div>
+              <div class="timeline-copy">
+                <h3>Step-level scorer pilot training</h3>
+                <p>VisualPRM-style rows를 step-level JSONL로 펼친 뒤, `Qwen2.5-7B-Instruct` 기반 scorer pilot을 학습했습니다.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Slide 3: key rollout metrics from the 100-case VLM run -->
+        <section class="slide">
+          <div class="eyebrow">Metrics</div>
+          <h2>Run Numbers</h2>
+          <div class="grid-3">
+            <div class="card metric">
+              <div class="metric-label">Avg Primary MC</div>
+              <div class="metric-value">0.75</div>
+              <div class="metric-copy">첫 solution의 final-step expected accuracy 평균</div>
+            </div>
+            <div class="card metric">
+              <div class="metric-label">Avg Best MC</div>
+              <div class="metric-value">0.798</div>
+              <div class="metric-copy">case별 최고 solution 기준 expected accuracy 평균</div>
+            </div>
+            <div class="card metric">
+              <div class="metric-label">Primary Positive</div>
+              <div class="metric-value">78.8%</div>
+              <div class="metric-copy">첫 solution의 final-step label이 `+`인 비율</div>
+            </div>
+            <div class="card metric">
+              <div class="metric-label">Step Rows</div>
+              <div class="metric-value">454</div>
+              <div class="metric-copy">flattened scorer training rows</div>
+            </div>
+          </div>
+          <div class="card">
+            <p class="lede">
+              이 숫자는 “최종 정답만 본 정확도”가 아니라,
+              rollout을 통해 계산한 step supervision 품질 지표입니다.
+            </p>
+          </div>
+        </section>
+
+        <!-- Slide 4: scorer pilot training result using the step-level dataset -->
+        <section class="slide">
+          <div class="eyebrow">Scorer Pilot</div>
+          <h2>학습도 한 번 끝까지 돌려봄</h2>
+          <div class="grid-3">
+            <div class="card metric">
+              <div class="metric-label">Train Rows</div>
+              <div class="metric-value">409</div>
+              <div class="metric-copy">step-level train split</div>
+            </div>
+            <div class="card metric">
+              <div class="metric-label">Val Rows</div>
+              <div class="metric-value">45</div>
+              <div class="metric-copy">step-level validation split</div>
+            </div>
+            <div class="card metric">
+              <div class="metric-label">Target</div>
+              <div class="metric-value">+/-</div>
+              <div class="metric-copy">current pilot uses binary step labels</div>
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="card metric">
+              <div class="metric-label">Epoch 1</div>
+              <div class="metric-value">0.224</div>
+              <div class="metric-copy">average loss</div>
+            </div>
+            <div class="card metric">
+              <div class="metric-label">Epoch 2</div>
+              <div class="metric-value">0.082</div>
+              <div class="metric-copy">average loss</div>
+            </div>
+            <div class="card metric">
+              <div class="metric-label">Epoch 3</div>
+              <div class="metric-value">0.071</div>
+              <div class="metric-copy">average loss</div>
+            </div>
+          </div>
+          <div class="card">
+            <p class="lede">
+              의미:
+              현재 스키마로 scorer 학습이 실제로 돌아가고, 최소한 loss 기준으로는 정상 수렴하는 pilot이 확인됐습니다.
+            </p>
+          </div>
+        </section>
+
+        <!-- Slide 5: show the schema shape of one VisualPRM-style row -->
+        <section class="slide">
+          <div class="eyebrow">Format</div>
+          <h2>Train Data Shape</h2>
+          <div class="card">
+            <div class="code">{
+  "id": "PathVQA::pathvqa_000000::solution_1",
+  "image": "images/pathvqa/pathvqa_000000.jpg",
+  "question": "...",
+  "options": ["Yes", "No"],
+  "final_answer_letter": "A",
+  "solution_expected_accuracy": 1.0,
+  "steps": [
+    {
+      "step_index": 1,
+      "title": "Examine the Image",
+      "text": "...",
+      "expected_accuracy": 0.75,
+      "label": "+",
+      "rollout_success": 3,
+      "rollout_total": 4
+    },
+    {
+      "step_index": 2,
+      "title": "Analyze the Tissue Structure",
+      "text": "...",
+      "expected_accuracy": 1.0,
+      "label": "+",
+      "rollout_success": 4,
+      "rollout_total": 4
+    }
+  ]
+}</div>
+          </div>
+        </section>
+
+        <!-- Slide 6: explain how expected_accuracy should be interpreted during training -->
+        <section class="slide">
+          <div class="eyebrow">Training Target</div>
+          <h2>논문형 supervision은 이렇게 해석합니다</h2>
+          <div class="grid-2">
+            <div class="card">
+              <div class="badge">Paper-Aligned View</div>
+              <div class="list" style="margin-top: 18px;">
+                <div>각 step에는 Monte Carlo continuation으로 계산한 <code>expected_accuracy</code>가 붙습니다</div>
+                <div>학습 시에는 <code>expected_accuracy &gt; 0</code> 인 step을 positive로 간주합니다</div>
+                <div><code>expected_accuracy = 0</code> 인 step은 버리는 게 아니라 negative supervision으로 남습니다</div>
+                <div>즉 좋은 step만 모으는 데이터셋이 아니라, 좋은 step과 나쁜 step을 함께 담은 데이터셋입니다</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="code">step 1: expected_accuracy = 0.75
+step 2: expected_accuracy = 1.00
+step 3: expected_accuracy = 0.00
+
+training interpretation
+- step 1: positive
+- step 2: positive
+- step 3: negative
+
+core idea
+drop low-score steps -> X
+keep all steps with supervision -> O</div>
+            </div>
+          </div>
+          <div class="card">
+            <p class="lede">
+              즉 팀이 학습에 사용할 때는 `고득점 step만 남긴 train set`이 아니라,
+              `각 step에 score가 붙어 있는 supervision set`으로 보는 것이 맞습니다.
+            </p>
+          </div>
+        </section>
+
+        <!-- Slide 7: point teammates to the concrete output files -->
+        <section class="slide">
+          <div class="eyebrow">Artifacts</div>
+          <h2>Output Files</h2>
+          <div class="grid-2">
+            <div class="card">
+              <h3>Rollout Raw Result</h3>
+              <p class="lede"><code>pathvqa_test_results_vlm100_2s_4k.json</code></p>
+              <p class="note">Nested structure with cases, solutions, step_results, and dataset summary.</p>
+            </div>
+            <div class="card">
+              <h3>VisualPRM-style JSONL</h3>
+              <p class="lede"><code>pathvqa_visualprm_style_vlm100_2s_4k.jsonl</code></p>
+              <p class="note">One row per case-solution, ready for step supervision experiments.</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="list">
+              <div>RunPod VLM generation path confirmed</div>
+              <div>MC rollout path confirmed</div>
+              <div>Step-level expected accuracy attached</div>
+              <div>Step-level scorer pilot training confirmed</div>
+              <div>GPU stopped after run to avoid ongoing cost</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Slide 8: what is done now vs what we should do next -->
+        <section class="slide">
+          <div class="eyebrow">Meaning</div>
+          <h2>What This Means</h2>
+          <div class="grid-2">
+            <div class="card">
+              <div class="badge">Done</div>
+              <div class="list" style="margin-top: 18px;">
+                <div>text-only 우회가 아니라 실제 VLM 기반 데이터 생성 확인</div>
+                <div>논문형 step supervision 포맷 확보</div>
+                <div>99-case 규모의 실제 step supervision 데이터 확보</div>
+                <div>현재 포맷으로 scorer pilot 학습까지 완료</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="badge">Next</div>
+              <div class="list" style="margin-top: 18px;">
+                <div>step-level scorer 결과 inference 점검</div>
+                <div>expected_accuracy 직접 예측하는 논문형 objective로 확장</div>
+                <div>더 큰 shard 또는 추가 dataset으로 supervision 확대</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="foot">
+        <div class="controls">
+          <button id="prev">Prev</button>
+          <button id="next">Next</button>
+        </div>
+        <div class="dots" id="dots"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const slides = document.getElementById("slides");
+    const total = slides.children.length;
+    const dots = document.getElementById("dots");
+    const prev = document.getElementById("prev");
+    const next = document.getElementById("next");
+    let index = 0;
+
+    for (let i = 0; i < total; i += 1) {
+      const dot = document.createElement("div");
+      dot.className = "dot";
+      dot.addEventListener("click", () => goTo(i));
+      dots.appendChild(dot);
+    }
+
+    function render() {
+      slides.style.transform = `translateX(-${index * 100}%)`;
+      prev.disabled = index === 0;
+      next.disabled = index === total - 1;
+      [...dots.children].forEach((dot, i) => dot.classList.toggle("active", i === index));
+    }
+
+    function goTo(i) {
+      index = Math.max(0, Math.min(total - 1, i));
+      render();
+    }
+
+    prev.addEventListener("click", () => goTo(index - 1));
+    next.addEventListener("click", () => goTo(index + 1));
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") goTo(index + 1);
+      if (event.key === "ArrowLeft" || event.key === "PageUp") goTo(index - 1);
+    });
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VisualPRM VLM Progress Update</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --panel: rgba(255, 252, 245, 0.82);
+      --ink: #182028;
+      --muted: #5c6670;
+      --line: rgba(24, 32, 40, 0.12);
+      --accent: #0d9488;
+      --accent-2: #ea580c;
+      --accent-3: #2563eb;
+      --success: #15803d;
+      --danger: #b91c1c;
+      --shadow: 0 24px 60px rgba(24, 32, 40, 0.14);
+      --radius: 28px;
+      --slide-width: min(1120px, calc(100vw - 32px));
+      --slide-height: min(720px, calc(100vh - 32px));
+      --display: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--display);
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 32%),
+        radial-gradient(circle at top right, rgba(13, 148, 136, 0.18), transparent 28%),
+        linear-gradient(180deg, #f8f4eb 0%, #efe6d8 100%);
+      overflow: hidden;
+    }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    .deck {
+      width: var(--slide-width);
+      height: var(--slide-height);
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      border-radius: 34px;
+      background: rgba(255, 255, 255, 0.28);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+
+    .grain {
+      position: absolute;
+      inset: 0;
+      opacity: 0.08;
+      pointer-events: none;
+      background-image:
+        linear-gradient(transparent 0%, rgba(24, 32, 40, 0.18) 100%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg fill='%23182028' fill-opacity='.15'%3E%3Ccircle cx='10' cy='18' r='1'/%3E%3Ccircle cx='40' cy='60' r='1'/%3E%3Ccircle cx='70' cy='24' r='1'/%3E%3Ccircle cx='110' cy='72' r='1'/%3E%3Ccircle cx='90' cy='114' r='1'/%3E%3Ccircle cx='22' cy='106' r='1'/%3E%3C/g%3E%3C/svg%3E");
+      mix-blend-mode: multiply;
+    }
+
+    .slides {
+      height: 100%;
+      display: flex;
+      transition: transform 420ms cubic-bezier(.22, 1, .36, 1);
+    }
+
+    .slide {
+      width: 100%;
+      flex: 0 0 100%;
+      padding: 42px 44px 84px;
+      display: grid;
+      gap: 24px;
+      align-content: start;
+      position: relative;
+    }
+
+    .eyebrow {
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2.6rem, 5vw, 4.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+      max-width: 10ch;
+    }
+
+    h2 {
+      font-size: clamp(1.7rem, 3vw, 2.7rem);
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .lede {
+      max-width: 56ch;
+      font-size: clamp(1rem, 1.35vw, 1.18rem);
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .hero-grid,
+    .two-up,
+    .stats-grid,
+    .cards {
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero-grid {
+      grid-template-columns: 1.45fr 1fr;
+      align-items: stretch;
+    }
+
+    .two-up {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .cards {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .panel {
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+      padding: 22px;
+    }
+
+    .panel strong {
+      color: var(--ink);
+    }
+
+    .metric {
+      display: grid;
+      gap: 10px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .metric-value {
+      font-size: clamp(1.8rem, 2.6vw, 3rem);
+      letter-spacing: -0.05em;
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .metric-sub {
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+
+    .ribbon {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      background: rgba(13, 148, 136, 0.12);
+      color: #0f766e;
+      width: fit-content;
+    }
+
+    .accent-orange {
+      background: rgba(234, 88, 12, 0.12);
+      color: #c2410c;
+    }
+
+    .accent-blue {
+      background: rgba(37, 99, 235, 0.12);
+      color: #1d4ed8;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      border: 1px solid rgba(24, 32, 40, 0.09);
+      background: rgba(255, 255, 255, 0.64);
+      border-radius: 999px;
+      padding: 9px 12px;
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 14px;
+    }
+
+    .timeline-step {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .timeline-index {
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      background: linear-gradient(135deg, rgba(13, 148, 136, 0.14), rgba(37, 99, 235, 0.12));
+      border: 1px solid rgba(24, 32, 40, 0.08);
+    }
+
+    .timeline-body {
+      display: grid;
+      gap: 4px;
+    }
+
+    .timeline-body p {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .code {
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      line-height: 1.6;
+      background: rgba(20, 24, 28, 0.94);
+      color: #f5f5f5;
+      border-radius: 22px;
+      padding: 18px;
+      white-space: pre-wrap;
+    }
+
+    .code small {
+      color: #9fd;
+    }
+
+    .bar-wrap {
+      display: grid;
+      gap: 10px;
+    }
+
+    .bar {
+      height: 16px;
+      background: rgba(24, 32, 40, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), var(--accent-3));
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .list div::before {
+      content: " ";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 10px;
+      border-radius: 999px;
+      background: var(--accent);
+      vertical-align: middle;
+    }
+
+    .nav {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-left {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 16px;
+      font: inherit;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.76);
+      color: var(--ink);
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(24, 32, 40, 0.08);
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.35;
+    }
+
+    .dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(24, 32, 40, 0.18);
+      transition: transform 180ms ease, background 180ms ease;
+    }
+
+    .dot.active {
+      transform: scale(1.35);
+      background: var(--ink);
+    }
+
+    .footer-note {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 920px) {
+      body {
+        overflow: auto;
+      }
+
+      .shell {
+        display: block;
+        padding: 12px;
+      }
+
+      .deck {
+        width: 100%;
+        height: auto;
+        min-height: calc(100vh - 24px);
+      }
+
+      .slides {
+        display: block;
+        transform: none !important;
+      }
+
+      .slide {
+        width: 100%;
+        min-height: calc(100vh - 24px);
+      }
+
+      .hero-grid,
+      .two-up,
+      .stats-grid,
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        position: sticky;
+        bottom: 0;
+        padding-top: 12px;
+        margin-top: -16px;
+        background: linear-gradient(180deg, rgba(244, 239, 230, 0), rgba(244, 239, 230, 0.96) 28%);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="deck">
+      <div class="grain"></div>
+      <div class="slides" id="slides">
+        <section class="slide">
+          <div class="eyebrow">VisualPRM Team Update</div>
+          <div class="hero-grid">
+            <div class="panel" style="padding: 28px;">
+              <div class="ribbon">PathVQA / Qwen2.5-VL-7B / RunPod</div>
+              <h1>VLM Rationale Dataset<br>1차 생성 결과</h1>
+              <p class="lede">
+                text-only 우회 경로를 정리하고, 실제 <code>Qwen2.5-VL-7B-Instruct</code>로
+                이미지 기반 rationale 생성 파이프라인을 연결했습니다. 이번 deck은
+                무엇이 바뀌었고, 어디까지 믿을 수 있는지, 다음 확장 단계가 무엇인지
+                공유하기 위한 업데이트입니다.
+              </p>
+              <div class="pill-row">
+                <span class="pill">VLM 경로 커밋: <code>0a38e68</code></span>
+                <span class="pill">Train set 커밋: <code>8314655</code></span>
+                <span class="pill">GPU 과금 종료 상태</span>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="stats-grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="metric">
+                  <div class="metric-label">Sample Batch</div>
+                  <div class="metric-value">100</div>
+                  <div class="metric-sub">PathVQA cases generated with image input</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Answer Match</div>
+                  <div class="metric-value">75%</div>
+                  <div class="metric-sub">75 / 100 exact answer-letter match</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Train Rows</div>
+                  <div class="metric-value">67</div>
+                  <div class="metric-sub">Multimodal SFT train rows after filtering</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Val Rows</div>
+                  <div class="metric-value">8</div>
+                  <div class="metric-sub">Held-out validation rows</div>
+                </div>
+              </div>
+              <div class="bar-wrap" style="margin-top: 18px;">
+                <div class="metric-label">Current Confidence</div>
+                <div class="bar"><span style="width: 75%;"></span></div>
+                <div class="footer-note">Good enough to continue. Not good enough to call production-ready.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="eyebrow">What Changed</div>
+          <h2>text-only에서 실제 VLM 생성 경로로 전환</h2>
+          <div class="two-up">
+            <div class="panel">
+              <div class="ribbon accent-orange">Before</div>
+              <div class="list" style="margin-top: 18px;">
+                <div><code>Qwen2.5-7B-Instruct</code> text-only 모델 사용</div>
+                <div>질문 / 선택지 / 메타데이터만 보고 rationale 생성</div>
+                <div>이미지는 메타데이터에만 있고 실제 추론에는 미사용</div>
+                <div>VisualPRM 논문 방식과 핵심적으로 어긋남</div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="ribbon accent-blue">Now</div>
+              <div class="list" style="margin-top: 18px;">
+                <div><code>Qwen2.5-VL-7B-Instruct</code> 기반 RunPod 경로 구축</div>
+                <div><code>image_url</code>를 backend와 model server까지 실제 전달</div>
+                <div><code>qwen-vl-utils</code>, 최신 <code>transformers</code>, <code>torch 2.7.1</code> 반영</div>
+                <div>PathVQA 20-case와 100-case 샘플 생성까지 확인</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <p class="lede">
+              핵심 포인트는 "이미지를 넣는 척"이 아니라, 실제로 model server가
+              이미지 파일을 읽고 답을 생성하도록 만든 것입니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="eyebrow">Pipeline</div>
+          <h2>현재 데이터 생산 흐름</h2>
+          <div class="timeline">
+            <div class="timeline-step">
+              <div class="timeline-index">1</div>
+              <div class="timeline-body">
+                <h3>PathVQA case + image bundle 준비</h3>
+                <p><code>vlm_sample_pathvqa_100</code> 안에 JSON과 실제 이미지 100장을 함께 구성.</p>
+              </div>
+            </div>
+            <div class="timeline-step">
+              <div class="timeline-index">2</div>
+              <div class="timeline-body">
+                <h3>RunPod에서 VLM server + backend 기동</h3>
+                <p><code>Qwen2.5-VL-7B-Instruct</code>를 로드하고 <code>/generate-steps</code>로 OpenAI-compatible 호출.</p>
+              </div>
+            </div>
+            <div class="timeline-step">
+              <div class="timeline-index">3</div>
+              <div class="timeline-body">
+                <h3>100-case rationale generation</h3>
+                <p>각 case에 대해 image + question + options로 step rationale과 final answer 생성.</p>
+              </div>
+            </div>
+            <div class="timeline-step">
+              <div class="timeline-index">4</div>
+              <div class="timeline-body">
+                <h3>정답 일치 필터 + SFT 포맷 변환</h3>
+                <p>정답 letter가 맞는 샘플만 유지해서 multimodal train / val JSONL 생성.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="eyebrow">Results</div>
+          <h2>숫자로 보면</h2>
+          <div class="cards">
+            <div class="panel metric">
+              <div class="metric-label">20-case pilot</div>
+              <div class="metric-value">90%</div>
+              <div class="metric-sub">18 / 20 answer-letter match</div>
+            </div>
+            <div class="panel metric">
+              <div class="metric-label">100-case batch</div>
+              <div class="metric-value">75%</div>
+              <div class="metric-sub">75 / 100 answer-letter match</div>
+            </div>
+            <div class="panel metric">
+              <div class="metric-label">SFT retained</div>
+              <div class="metric-value">75</div>
+              <div class="metric-sub">100 raw rows -> 75 kept rows</div>
+            </div>
+          </div>
+          <div class="two-up">
+            <div class="panel">
+              <div class="metric-label">Artifacts</div>
+              <div class="code"><small>runpod_artifacts/</small>
+pathvqa_vlm20_generate_steps.jsonl
+pathvqa_vlm100_generate_steps.jsonl
+
+<small>runpod_data/</small>
+pathvqa_vlm100_sft_train.jsonl
+pathvqa_vlm100_sft_val.jsonl
+pathvqa_vlm100_sft_manifest.json</div>
+            </div>
+            <div class="panel">
+              <div class="metric-label">Train Split</div>
+              <div class="code">source_rows: 100
+kept_rows:   75
+dropped:     25
+train_rows:  67
+val_rows:     8</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="eyebrow">Sample</div>
+          <h2>Train Set 포맷 예시</h2>
+          <div class="panel">
+            <div class="code">{
+  "id": "PathVQA::pathvqa_000057",
+  "image": "images/pathvqa/pathvqa_000057.jpg",
+  "conversations": [
+    {
+      "from": "human",
+      "value": "&lt;image&gt;\n### Question:\ndoes this image show source of granulomatous colitis?\n..."
+    },
+    {
+      "from": "gpt",
+      "value": "1. The image shows a histological section with areas of inflammation...\n2. Granulomas are small, well-circumscribed nodules..."
+    }
+  ],
+  "metadata": {
+    "gold_letter": "A",
+    "final_answer_letter": "A",
+    "num_steps": 2
+  }
+}</div>
+          </div>
+          <div class="panel">
+            <p class="lede">
+              train set은 `<image>` 토큰을 포함한 multimodal SFT 형식입니다.
+              즉 바로 "image + question -> rationale" fine-tuning 실험에 연결할 수 있습니다.
+            </p>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="eyebrow">Assessment</div>
+          <h2>지금 상태를 어떻게 볼까</h2>
+          <div class="two-up">
+            <div class="panel">
+              <div class="ribbon">Good News</div>
+              <div class="list" style="margin-top: 18px;">
+                <div>VLM 경로는 실제로 작동한다</div>
+                <div>100-case 배치도 안정적으로 끝났다</div>
+                <div>텍스트-only 우회가 아니라 image-grounded generation으로 전환됐다</div>
+                <div>실제 학습용 JSONL까지 만들었다</div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="ribbon accent-orange">Still Risky</div>
+              <div class="list" style="margin-top: 18px;">
+                <div>정답 일치가 75%라 아직 거친 샘플이 섞여 있다</div>
+                <div>step 수가 2~3개로 짧은 케이스가 꽤 있다</div>
+                <div>PathVQA 100개만으로는 style이 안정적이라고 보기 어렵다</div>
+                <div>바로 대규모 본학습보다 2차 필터 또는 추가 batch가 더 안전하다</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="eyebrow">Next</div>
+          <h2>추천 액션</h2>
+          <div class="panel">
+            <div class="timeline">
+              <div class="timeline-step">
+                <div class="timeline-index">A</div>
+                <div class="timeline-body">
+                  <h3>현 상태로 바로 VLM SFT 1차 실험</h3>
+                  <p><code>67 / 8</code> 셋으로 소규모 fine-tune. 가장 빠르지만 데이터 잡음이 남아 있습니다.</p>
+                </div>
+              </div>
+              <div class="timeline-step">
+                <div class="timeline-index">B</div>
+                <div class="timeline-body">
+                  <h3>추천: 100-case 추가 생성 + 품질 필터 강화</h3>
+                  <p>같은 경로로 `+100`을 더 만들고, 정답 일치 외에 step 길이 / wording 규칙을 더 걸어 train set을 키우는 방식입니다.</p>
+                </div>
+              </div>
+              <div class="timeline-step">
+                <div class="timeline-index">C</div>
+                <div class="timeline-body">
+                  <h3>그다음 PRM scorer 데이터로 확장</h3>
+                  <p>VLM rationale 품질이 안정되면 그 결과로 step-level scorer dataset을 더 논문스럽게 확장할 수 있습니다.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <p class="lede">
+              팀 공유용 메시지 한 줄:
+              <strong>우리는 이제 실제 VLM 기반 rationale generation 파이프라인을 확보했고, 첫 100-case multimodal train set까지 만들었다.</strong>
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <div class="nav">
+        <div class="nav-left">
+          <button id="prev">Prev</button>
+          <button id="next">Next</button>
+        </div>
+        <div class="dots" id="dots"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const slides = document.getElementById("slides");
+    const slideCount = slides.children.length;
+    const dots = document.getElementById("dots");
+    const prev = document.getElementById("prev");
+    const next = document.getElementById("next");
+    let index = 0;
+
+    for (let i = 0; i < slideCount; i += 1) {
+      const dot = document.createElement("div");
+      dot.className = "dot";
+      dot.addEventListener("click", () => goTo(i));
+      dots.appendChild(dot);
+    }
+
+    function render() {
+      slides.style.transform = `translateX(-${index * 100}%)`;
+      prev.disabled = index === 0;
+      next.disabled = index === slideCount - 1;
+      [...dots.children].forEach((dot, dotIndex) => {
+        dot.classList.toggle("active", dotIndex === index);
+      });
+    }
+
+    function goTo(nextIndex) {
+      index = Math.max(0, Math.min(slideCount - 1, nextIndex));
+      render();
+    }
+
+    prev.addEventListener("click", () => goTo(index - 1));
+    next.addEventListener("click", () => goTo(index + 1));
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
+        goTo(index + 1);
+      }
+      if (event.key === "ArrowLeft" || event.key === "PageUp") {
+        goTo(index - 1);
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>
