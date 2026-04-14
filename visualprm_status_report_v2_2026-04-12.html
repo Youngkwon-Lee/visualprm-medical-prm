@@ -42,9 +42,9 @@
         <p>1) Baseline → 2) Baseline vs RAG → 3) Baseline vs RAG vs RAG_PRM</p>
       </div>
       <div class="cards">
-        <article class="card"><span class="badge b1">1</span><h3>Baseline</h3><ul><li>Gemini 단독으로 질문/선택지(+이미지) 입력</li><li>모델이 단계적 추론 후 최종 답 1개 선택</li><li>gold와 비교해 정답률 계산</li><li>이번 기준선: acc 약 0.50</li></ul></article>
+        <article class="card"><span class="badge b1">1</span><h3>Baseline (현재 임시)</h3><ul><li><b>현재:</b> Gemini 단독으로 질문/선택지(+이미지) 입력</li><li>모델이 단계적 추론 후 최종 답 1개 선택</li><li>gold와 비교해 정답률 계산</li><li><b>추후:</b> Qwen-VL 학습모델로 교체 예정</li><li>이번 기준선: acc 약 0.50</li></ul></article>
         <article class="card"><span class="badge b2">2</span><h3>Baseline vs RAG</h3><ul><li>RAG는 <b>route → retrieve → grounding → reasoning</b> 추가</li><li>근거를 붙여 판단하도록 유도</li><li>이번 결과에서는 baseline 대비 이득 미미</li></ul></article>
-        <article class="card"><span class="badge b3">3</span><h3>Baseline vs RAG vs RAG+PRM</h3><ul><li>RAG+PRM도 앞단 RAG(route/retrieve/grounding/reasoning)는 동일</li><li>마지막 선택만 <b>model 선택 → PRM 선택</b>으로 교체</li><li>현재 PRM 선택 경로는 동작하나 후보 0 붕괴로 개선 제한</li></ul></article>
+        <article class="card"><span class="badge b3">3</span><h3>Baseline vs RAG vs RAG+PRM (유지)</h3><ul><li>RAG+PRM도 앞단 RAG(route/retrieve/grounding/reasoning)는 동일</li><li>마지막 선택만 <b>model 선택 → PRM 선택</b>으로 교체</li><li><b>현재:</b> Gemini 임시 + PRM 경로 검증 단계</li><li><b>목표:</b> Qwen-VL 학습모델 + 팀원 real PRM 조합으로 전환</li></ul></article>
       </div>
       <div style="margin-top:16px;border:1px solid #d7deea;border-radius:12px;padding:10px;background:#fff;">
         <div style="font-size:14px;color:#475569;margin-bottom:8px;">Pipeline Diagram (SVG)</div>
