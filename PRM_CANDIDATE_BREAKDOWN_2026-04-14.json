@@ -1,0 +1,182 @@
+[
+  {
+    "id": "vqarad_000000",
+    "gold": 0,
+    "status": 200,
+    "pred": 0,
+    "decision_source": "prm_select",
+    "candidate_scores": [
+      {
+        "answer_index": 0,
+        "answer_letter": "A",
+        "avg_step_score": 0.5233,
+        "prm_confidence": null,
+        "prm_error": null,
+        "prm_score": 0.5833,
+        "surrogate_score": 0.6433
+      }
+    ]
+  },
+  {
+    "id": "vqarad_000001",
+    "gold": 1,
+    "status": 200,
+    "pred": 0,
+    "decision_source": "prm_select",
+    "candidate_scores": [
+      {
+        "answer_index": 0,
+        "answer_letter": "A",
+        "avg_step_score": 0.4767,
+        "prm_confidence": null,
+        "prm_error": null,
+        "prm_score": 0.5367,
+        "surrogate_score": 0.5967
+      }
+    ]
+  },
+  {
+    "id": "vqarad_000003",
+    "gold": 1,
+    "status": 200,
+    "pred": 0,
+    "decision_source": "prm_select",
+    "candidate_scores": [
+      {
+        "answer_index": 0,
+        "answer_letter": "A",
+        "avg_step_score": 0.4767,
+        "prm_confidence": null,
+        "prm_error": null,
+        "prm_score": 0.5367,
+        "surrogate_score": 0.5967
+      }
+    ]
+  },
+  {
+    "id": "vqarad_000009",
+    "gold": 0,
+    "status": 200,
+    "pred": 0,
+    "decision_source": "prm_select",
+    "candidate_scores": [
+      {
+        "answer_index": 0,
+        "answer_letter": "A",
+        "avg_step_score": 0.5433,
+        "prm_confidence": null,
+        "prm_error": null,
+        "prm_score": 0.6033,
+        "surrogate_score": 0.6633
+      }
+    ]
+  },
+  {
+    "id": "vqarad_000010",
+    "gold": 1,
+    "status": 200,
+    "pred": 0,
+    "decision_source": "prm_select",
+    "candidate_scores": [
+      {
+        "answer_index": 0,
+        "answer_letter": "A",
+        "avg_step_score": 0.4567,
+        "prm_confidence": null,
+        "prm_error": null,
+        "prm_score": 0.5167,
+        "surrogate_score": 0.5767
+      }
+    ]
+  },
+  {
+    "id": "pathvqa_000000",
+    "gold": 0,
+    "status": 200,
+    "pred": 0,
+    "decision_source": "prm_select",
+    "candidate_scores": [
+      {
+        "answer_index": 0,
+        "answer_letter": "A",
+        "avg_step_score": 0.5667,
+        "prm_confidence": null,
+        "prm_error": null,
+        "prm_score": 0.6267,
+        "surrogate_score": 0.6867
+      }
+    ]
+  },
+  {
+    "id": "pathvqa_000001",
+    "gold": 1,
+    "status": 200,
+    "pred": 0,
+    "decision_source": "prm_select",
+    "candidate_scores": [
+      {
+        "answer_index": 0,
+        "answer_letter": "A",
+        "avg_step_score": 0.4967,
+        "prm_confidence": null,
+        "prm_error": null,
+        "prm_score": 0.5567,
+        "surrogate_score": 0.6167
+      }
+    ]
+  },
+  {
+    "id": "pathvqa_000002",
+    "gold": 0,
+    "status": 200,
+    "pred": 0,
+    "decision_source": "prm_select",
+    "candidate_scores": [
+      {
+        "answer_index": 0,
+        "answer_letter": "A",
+        "avg_step_score": 0.5667,
+        "prm_confidence": null,
+        "prm_error": null,
+        "prm_score": 0.6267,
+        "surrogate_score": 0.6867
+      }
+    ]
+  },
+  {
+    "id": "pathvqa_000003",
+    "gold": 1,
+    "status": 200,
+    "pred": 0,
+    "decision_source": "prm_select",
+    "candidate_scores": [
+      {
+        "answer_index": 0,
+        "answer_letter": "A",
+        "avg_step_score": 0.5,
+        "prm_confidence": null,
+        "prm_error": null,
+        "prm_score": 0.56,
+        "surrogate_score": 0.62
+      }
+    ]
+  },
+  {
+    "id": "pathvqa_000004",
+    "gold": 0,
+    "status": 200,
+    "pred": 0,
+    "decision_source": "prm_select",
+    "candidate_scores": [
+      {
+        "answer_index": 0,
+        "answer_letter": "A",
+        "avg_step_score": 0.5233,
+        "prm_confidence": null,
+        "prm_error": null,
+        "prm_score": 0.5833,
+        "surrogate_score": 0.6433
+      }
+    ]
+  }
+]
