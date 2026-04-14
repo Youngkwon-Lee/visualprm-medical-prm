@@ -42,9 +42,9 @@
         <p>1) Baseline → 2) Baseline vs RAG → 3) Baseline vs RAG vs RAG_PRM</p>
       </div>
       <div class="cards">
-        <article class="card"><span class="badge b1">1</span><h3>Baseline에서 실제 한 일</h3><ul><li>VQA-RAD/PathVQA 샘플의 <b>질문+선택지(+이미지)</b>를 Gemini에 입력</li><li>Gemini가 단계적 추론을 만든 뒤 <b>최종 답 1개</b>를 선택</li><li>선택한 답을 gold와 비교해 정오답 계산</li><li>RAG/PRM 없이 <b>모델 단독</b> 성능을 기준선으로 사용</li><li>결과: acc 약 0.50, 0번 쏠림</li></ul></article>
-        <article class="card"><span class="badge b2">2</span><h3>RAG 파이프라인 (쉬운 설명)</h3><ul><li><b>Route:</b> 이 문제를 어떤 관점(일반/병리/영상)으로 볼지 결정</li><li><b>Retrieve:</b> Qdrant에서 비슷한 사례/문서 근거 검색</li><li><b>Grounding:</b> 찾은 근거를 붙여 판단 기준 고정</li><li><b>Reasoning:</b> Gemini가 질문+선택지+근거로 단계적 판단</li><li><b>Final:</b> 최종 답 1개 선택 (현재 baseline 대비 이득 미미)</li></ul></article>
-        <article class="card"><span class="badge b3">3</span><h3>RAG + PRM 파이프라인 (도식)</h3><ul><li><code>Input</code> → <code>RAG</code> → <code>BoN 후보 N개</code></li><li>→ <code>PRM score(candidate별)</code></li><li>→ <code>best candidate 선택</code> → <code>final_answer</code></li><li><b>모드:</b> <code>selection_mode=prm</code>, <code>bon_n</code></li><li><b>현재:</b> PRM 선택은 동작하나 후보가 0으로 붕괴</li></ul></article>
+        <article class="card"><span class="badge b1">1</span><h3>Baseline</h3><ul><li>Gemini 단독으로 질문/선택지(+이미지) 입력</li><li>모델이 단계적 추론 후 최종 답 1개 선택</li><li>gold와 비교해 정답률 계산</li><li>이번 기준선: acc 약 0.50</li></ul></article>
+        <article class="card"><span class="badge b2">2</span><h3>Baseline vs RAG</h3><ul><li>RAG는 <b>route → retrieve → grounding → reasoning</b> 추가</li><li>근거를 붙여 판단하도록 유도</li><li>이번 결과에서는 baseline 대비 이득 미미</li></ul></article>
+        <article class="card"><span class="badge b3">3</span><h3>Baseline vs RAG vs RAG+PRM</h3><ul><li>RAG+PRM도 앞단 RAG(route/retrieve/grounding/reasoning)는 동일</li><li>마지막 선택만 <b>model 선택 → PRM 선택</b>으로 교체</li><li>현재 PRM 선택 경로는 동작하나 후보 0 붕괴로 개선 제한</li></ul></article>
       </div>
       <div style="margin-top:16px;border:1px solid #d7deea;border-radius:12px;padding:10px;background:#fff;">
         <div style="font-size:14px;color:#475569;margin-bottom:8px;">Pipeline Diagram (SVG)</div>
