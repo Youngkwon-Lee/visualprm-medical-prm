@@ -61,21 +61,17 @@
 
     <section class="slide">
       <div class="s2-head">
-        <div class="kicker">Timeline</div>
-        <h2>실험 타임라인 (처음부터)</h2>
-        <p>실패/재실행 포함 전체 흐름</p>
+        <div class="kicker">Experiment Design</div>
+        <h2>실험 구성 (요청 반영 3단계)</h2>
+        <p>1) Baseline → 2) Baseline vs RAG → 3) Baseline vs RAG vs RAG_PRM</p>
       </div>
       <table>
-        <tr><th>구간</th><th>실험</th><th>핵심 결과</th><th>비고</th></tr>
-        <tr><td>A</td><td>RAG vs baseline (20)</td><td>baseline 0/20 실패, rag 20/20 acc 0.5</td><td>원인: generate-steps 500(429 전파)</td></tr>
-        <tr><td>B</td><td>스모크 (2)</td><td>baseline/rag 모두 acc 1.0, error 0</td><td>fallback 복구 확인</td></tr>
-        <tr><td>C</td><td>RAG vs baseline (20)</td><td>baseline 0.5, rag 0.5, error 0/0</td><td>pred 모두 0쪽 쏠림</td></tr>
-        <tr><td>D</td><td>RAG vs baseline (10)</td><td>baseline 0.5, rag 0.5</td><td>동일 패턴 재확인</td></tr>
-        <tr><td>E</td><td>pathvqa-only 5</td><td>acc null</td><td>connection refused (제외)</td></tr>
-        <tr><td>F-1</td><td>PRM compare (10)</td><td>baseline/rag_model/rag_prm 모두 0.5</td><td>prm_select 10/10 동작</td></tr>
-        <tr><td>F-2</td><td>보정룰 후 PRM compare</td><td>수치 변화 없음</td><td>surrogate PRM 한계</td></tr>
+        <tr><th>단계</th><th>실험</th><th>핵심 결과</th><th>요약</th></tr>
+        <tr><td>1</td><td>Baseline</td><td>acc ~0.50 (샘플셋 기준)</td><td>단순 Gemini 경로 기준점 확보</td></tr>
+        <tr><td>2</td><td>Baseline vs RAG</td><td>둘 다 acc ~0.50, pred 0쏠림</td><td>RAG가 정확도 이득을 만들지 못함</td></tr>
+        <tr><td>3</td><td>Baseline vs RAG vs RAG_PRM</td><td>세 경로 모두 acc ~0.50</td><td>PRM 선택 경로는 동작, 성능 개선은 미미</td></tr>
       </table>
-      <div class="brand">유효 결과 파일: ablation_online_rag_vs_baseline.json · ablation_online_prm_mode_compare_10.json</div>
+      <div class="brand">결과 파일: ablation_online_rag_vs_baseline.json · ablation_online_prm_mode_compare_10.json</div>
     </section>
 
     <section class="slide">
@@ -114,6 +110,20 @@
         <article class="card"><span class="badge b6">UPDATE</span><h3>방금 반영</h3><ul><li>HTTP PRM provider 훅 구현</li><li>실패 시 surrogate fallback</li><li><code>run_eval_prm_real.ps1</code> 추가</li></ul></article>
       </div>
       <div class="brand">Requested by thread review (임유석 선생님 피드백 포함)</div>
+    </section>
+
+    <section class="slide">
+      <div class="s2-head">
+        <div class="kicker">Diagnostics</div>
+        <h2>추가 진단 2가지</h2>
+        <p>요청하신 3단계 실험 외에 필요한 최소 진단</p>
+      </div>
+      <div class="cards">
+        <article class="card"><span class="badge b4">Diag 1</span><h3>Error Breakdown</h3><ul><li>최신 10샘플 오답 5건 모두</li><li><code>gold=1, pred=0</code> 패턴</li><li>selection collapse(0-bias)로 분류</li></ul></article>
+        <article class="card"><span class="badge b5">Diag 2</span><h3>Candidate Diversity</h3><ul><li>PRM 모드 후보 분해 결과</li><li>10/10 케이스에서 후보가 전부 0</li><li>선택기 이전에 후보 생성 붕괴 확인</li></ul></article>
+        <article class="card"><span class="badge b6">Implication</span><h3>의미</h3><ul><li>PRM 선택 자체는 동작</li><li>하지만 후보 다양성 확보가 선행 필요</li><li>실제 팀원 PRM 연결이 다음 핵심</li></ul></article>
+      </div>
+      <div class="brand">Files: ERROR_BREAKDOWN_2026-04-14.md · PRM_CANDIDATE_BREAKDOWN_2026-04-14.md</div>
     </section>
 
     <section class="slide">
