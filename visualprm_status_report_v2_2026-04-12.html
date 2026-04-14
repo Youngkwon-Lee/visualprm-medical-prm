@@ -38,22 +38,27 @@
     <section class="slide">
       <div class="s2-head">
         <div class="kicker">Experiment Design</div>
-        <h2>요청 반영: 3단계 실험 + 2개 진단</h2>
+        <h2>요청 반영: 3단계 실험</h2>
         <p>1) Baseline → 2) Baseline vs RAG → 3) Baseline vs RAG vs RAG_PRM</p>
       </div>
       <div class="cards">
         <article class="card"><span class="badge b1">1</span><h3>Baseline (단순 Gemini)</h3><ul><li><b>엔드포인트:</b> <code>/generate-steps</code></li><li><b>입력:</b> question + options (+ image_url)</li><li><b>동작:</b> Gemini가 step 생성 후 final_answer 선택</li><li><b>특징:</b> RAG/PRM 없이 모델 단독 추론</li><li><b>결과:</b> acc 약 0.50, 0번 쏠림</li></ul></article>
         <article class="card"><span class="badge b2">2</span><h3>RAG 파이프라인 (도식)</h3><ul><li><code>Input</code> → <code>Route</code> → <code>Retrieve(Qdrant)</code></li><li>→ <code>Grounding(retrieval_context)</code></li><li>→ <code>Gemini reasoning</code> → <code>final_answer</code></li><li><b>엔드포인트:</b> <code>/agent-answer</code></li><li><b>결과:</b> baseline 대비 정확도 이득 미미</li></ul></article>
         <article class="card"><span class="badge b3">3</span><h3>RAG + PRM 파이프라인 (도식)</h3><ul><li><code>Input</code> → <code>RAG</code> → <code>BoN 후보 N개</code></li><li>→ <code>PRM score(candidate별)</code></li><li>→ <code>best candidate 선택</code> → <code>final_answer</code></li><li><b>모드:</b> <code>selection_mode=prm</code>, <code>bon_n</code></li><li><b>현재:</b> PRM 선택은 동작하나 후보가 0으로 붕괴</li></ul></article>
-        <article class="card"><span class="badge b4">Diag 1</span><h3>Error Breakdown</h3><ul><li>10샘플 오답 5건</li><li>모두 <code>gold=1, pred=0</code></li><li>selection collapse(0-bias)</li></ul></article>
-        <article class="card"><span class="badge b5">Diag 2</span><h3>Candidate Diversity</h3><ul><li>PRM 후보 분해 결과</li><li>10/10 케이스 후보 전부 0</li><li>후보 생성 단계 병목</li></ul></article>
-        <article class="card"><span class="badge b6">Next</span><h3>다음 액션</h3><ul><li>팀원 real PRM 연결</li><li>후보 다양성 강제(yes/no 양측 후보)</li><li>same-set A/B 재평가</li></ul></article>
       </div>
       <div style="margin-top:16px;border:1px solid #d7deea;border-radius:12px;padding:10px;background:#fff;">
         <div style="font-size:14px;color:#475569;margin-bottom:8px;">Pipeline Diagram (SVG)</div>
         <img src="visualprm_pipeline_flow_2026-04-14.svg" alt="VisualPRM pipeline flow" style="width:100%;height:auto;border-radius:8px;"/>
       </div>
-      <div class="brand">Source: ablation_online_rag_vs_baseline.json · ablation_online_prm_mode_compare_10.json · ERROR_BREAKDOWN_2026-04-14.md</div>
+      <div style="margin-top:14px;border:1px solid #d7deea;border-radius:12px;padding:12px;background:#fff;">
+        <div style="font-size:13px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.06em;">Next (마지막)</div>
+        <ul style="margin:8px 0 0 18px;line-height:1.6;color:#243046;">
+          <li>팀원 real PRM 연결</li>
+          <li>후보 다양성 강제(yes/no 양측 후보)</li>
+          <li>same-set A/B 재평가</li>
+        </ul>
+      </div>
+      <div class="brand">Source: ablation_online_rag_vs_baseline.json · ablation_online_prm_mode_compare_10.json</div>
     </section>
   </div>
 </body>
