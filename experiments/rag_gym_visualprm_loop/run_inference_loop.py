@@ -43,7 +43,8 @@ def build_image_url(image_url, prefix=""):
         return image_url
     if prefix:
         return prefix.rstrip('/') + '/' + image_url.lstrip('/')
-    return image_url
+    # 상대경로 이미지는 원격 백엔드(ollama)에서 접근 불가할 수 있어 기본적으로 비활성화
+    return ''
 
 
 def actor_generate_candidates(sample, cfg, prefix_steps):
