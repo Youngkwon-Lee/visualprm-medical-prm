@@ -21,6 +21,7 @@ loop:
 
 critic:
   mode: verify_steps   # verify_steps | random
+  base_url: ""         # 비우면 backend.base_url 사용. 분리 시 예: http://127.0.0.1:5051
 
 output:
   dir: /mnt/d/visualprm/experiments/rag_gym_visualprm_loop/outputs

@@ -92,7 +92,7 @@ def critic_score_candidate(sample, candidate, cfg):
     if mode == 'random':
         return random.random(), {'mode': 'random'}
 
-    base = cfg['backend']['base_url'].rstrip('/')
+    base = (cfg.get('critic', {}).get('base_url') or cfg['backend']['base_url']).rstrip('/')
     timeout = float(cfg['backend'].get('timeout_sec', 45))
     payload = {
         'question': sample.get('question', ''),
