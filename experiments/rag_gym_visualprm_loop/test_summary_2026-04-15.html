@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG-Gym × VisualPRM Loop 테스트 요약 (2026-04-15)</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', Arial, sans-serif; margin: 28px; color:#111; line-height:1.6; }
+    h1,h2 { line-height:1.25; }
+    .card { border:1px solid #ddd; border-radius:10px; padding:14px; margin:12px 0; }
+    code { background:#f4f4f4; padding:2px 6px; border-radius:6px; }
+    .ok { color:#0a7; font-weight:700; }
+    .warn { color:#c76; font-weight:700; }
+    ul { margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <h1>RAG-Gym × VisualPRM Loop 테스트 요약</h1>
+  <p>작성일: 2026-04-15</p>
+
+  <div class="card">
+    <h2>1) 이번 테스트 목적</h2>
+    <ul>
+      <li>WSL(오케스트레이터) + MacBook Ollama(모델) 연결 확인</li>
+      <li>actor-critic 루프 코드가 끝까지 도는지 스모크 테스트</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>2) 실행 환경</h2>
+    <ul>
+      <li>오케스트레이터: Desktop WSL</li>
+      <li>모델 서버: MacBook Ollama</li>
+      <li>Ollama 모델: <code>gemma4:latest</code> (설치 확인됨)</li>
+      <li>백엔드: <code>api_backend.py</code> (localhost:8764)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>3) 실제 테스트 세팅 (스모크)</h2>
+    <ul>
+      <li>Provider: <code>open_model</code></li>
+      <li>Generate/Verify model: <code>gemma4:latest</code></li>
+      <li>Dataset: <code>pathvqa_test_for_app.json</code></li>
+      <li><code>max_samples=2</code>, <code>max_iter=1</code>, <code>num_actions=2</code></li>
+      <li>Critic mode: <code>random</code> (verify_steps 비활성)</li>
+      <li>상대경로 이미지 URL은 원격 접근 이슈로 임시 비활성</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>4) 결과</h2>
+    <ul>
+      <li class="ok">[1/2] pathvqa_000000 pred=0 gold=0 correct=True</li>
+      <li class="ok">[2/2] pathvqa_000001 pred=1 gold=1 correct=True</li>
+      <li><b>Accuracy: 1.0</b> (2샘플 스모크 기준)</li>
+    </ul>
+    <p>결과 파일:</p>
+    <ul>
+      <li><code>experiments/rag_gym_visualprm_loop/outputs/inference_results.json</code></li>
+      <li><code>experiments/rag_gym_visualprm_loop/outputs/summary.json</code></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>5) 이 결과의 의미</h2>
+    <ul>
+      <li>파이프라인(로딩→생성→선택→저장) 동작은 확인됨</li>
+      <li>아직 <code>verify_steps</code> critic 성능 검증은 안 한 상태</li>
+      <li>정확도 1.0은 소규모 스모크라 성능 결론으로 사용 불가</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>6) 다음 단계 (본 실험)</h2>
+    <ol>
+      <li><code>critic.mode = verify_steps</code>로 변경</li>
+      <li><code>max_samples=20</code>, <code>num_actions=5</code>로 확대</li>
+      <li>비교: random critic vs verify_steps critic</li>
+      <li>가능하면 이미지 URL을 HTTP로 제공해 멀티모달 입력 복구</li>
+    </ol>
+  </div>
+</body>
+</html>
