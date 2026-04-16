@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG-Gym × VisualPRM 파이프라인 정리 (2026-04-16)</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', Arial, sans-serif; margin: 28px; line-height: 1.6; color:#111; }
+    .card { border:1px solid #ddd; border-radius:10px; padding:14px; margin:12px 0; }
+    code { background:#f4f4f4; padding:2px 6px; border-radius:6px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { border:1px solid #ddd; padding:8px; text-align:left; }
+    th { background:#fafafa; }
+  </style>
+</head>
+<body>
+  <h1>RAG-Gym × VisualPRM 파이프라인 정리</h1>
+  <p>업데이트: 2026-04-16</p>
+
+  <div class="card">
+    <h2>1) 현재 파이프라인 (구현 상태)</h2>
+    <ol>
+      <li>데이터 로드 (<code>pathvqa_test_for_app.json</code>)</li>
+      <li>입력 상태 구성 (question/options/case_type/modality)</li>
+      <li>Actor: <code>/generate-steps</code>로 후보 <code>num_actions</code>개 생성</li>
+      <li>Critic:
+        <ul>
+          <li><code>random</code> 모드: 랜덤 점수</li>
+          <li><code>verify_steps</code> 모드: <code>/verify-steps</code> step score 평균</li>
+        </ul>
+      </li>
+      <li>최고 점수 후보 선택 (argmax)</li>
+      <li>필요 시 루프 반복 (<code>max_iter</code>)</li>
+      <li>최종 답 저장 + 정답 비교 + 결과 파일 출력</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>2) 텍스트 기반인가? 이미지 기반인가?</h2>
+    <table>
+      <thead><tr><th>구분</th><th>현재 상태</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>질문/선지/메타</td>
+          <td>사용 중</td>
+          <td>텍스트 입력으로 정상 사용</td>
+        </tr>
+        <tr>
+          <td>이미지 입력</td>
+          <td>부분 비활성</td>
+          <td>상대경로 이미지(<code>images/...</code>)를 원격 Ollama가 직접 못 읽는 이슈로 임시 비활성 처리</td>
+        </tr>
+        <tr>
+          <td>결론</td>
+          <td><b>현재는 사실상 텍스트 중심 추론</b></td>
+          <td>멀티모달 완전 모드 아님</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>3) 멀티모달(이미지 포함)로 완전 복구하려면</h2>
+    <ol>
+      <li>이미지를 HTTP URL로 노출 (<code>http://.../visualprm/images/...</code>)</li>
+      <li><code>image_url_prefix</code>를 config에 설정</li>
+      <li>Actor 호출에서 image_url 전달 유지</li>
+      <li>성능 비교: 텍스트-only vs 이미지+텍스트</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>4) 출력 파일</h2>
+    <ul>
+      <li><code>experiments/rag_gym_visualprm_loop/outputs/inference_results.json</code></li>
+      <li><code>experiments/rag_gym_visualprm_loop/outputs/summary.json</code></li>
+    </ul>
+  </div>
+</body>
+</html>
