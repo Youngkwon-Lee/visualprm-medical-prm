@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG-Gym 논문 파이프라인 도식 (2026-04-16)</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', Arial, sans-serif; margin: 24px; color:#111; }
+    .card { border:1px solid #ddd; border-radius:10px; padding:14px; margin:12px 0; }
+    .muted { color:#666; }
+    svg text { font-size: 13px; }
+    code { background:#f4f4f4; padding:2px 6px; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <h1>RAG-Gym 논문 파이프라인 도식</h1>
+  <p class="muted">출처 개념: RAG-Gym (Prompt Engineering + Actor Tuning + Critic Training)</p>
+
+  <div class="card">
+    <svg width="1120" height="620" viewBox="0 0 1120 620" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#333" />
+        </marker>
+      </defs>
+
+      <rect x="30" y="30" width="220" height="70" rx="10" fill="#f8fbff" stroke="#5b8def"/>
+      <text x="45" y="58">1) Question 입력</text>
+      <text x="45" y="78">State = Q + History</text>
+
+      <rect x="290" y="30" width="260" height="70" rx="10" fill="#eefcf3" stroke="#35a867"/>
+      <text x="305" y="58">2) Actor가 행동 후보 생성</text>
+      <text x="305" y="78">(query 또는 answer, N개)</text>
+
+      <rect x="590" y="30" width="240" height="70" rx="10" fill="#fff8ef" stroke="#d8891c"/>
+      <text x="605" y="58">3) Critic/Reward로 채점</text>
+      <text x="605" y="78">(process-level score)</text>
+
+      <rect x="870" y="30" width="220" height="70" rx="10" fill="#fff8ef" stroke="#d8891c"/>
+      <text x="885" y="58">4) 최고점 action 선택</text>
+      <text x="885" y="78">argmax(score)</text>
+
+      <rect x="870" y="140" width="220" height="80" rx="10" fill="#f8fbff" stroke="#5b8def"/>
+      <text x="885" y="168">5) Env.step(action)</text>
+      <text x="885" y="188">query면 검색 실행</text>
+      <text x="885" y="208">answer면 종료</text>
+
+      <rect x="590" y="140" width="240" height="80" rx="10" fill="#f8fbff" stroke="#5b8def"/>
+      <text x="605" y="168">6) Retrieval( IR 환경 )</text>
+      <text x="605" y="188">BM25/BGE/RRF 등</text>
+      <text x="605" y="208">문서 top-k 반환</text>
+
+      <rect x="290" y="140" width="260" height="80" rx="10" fill="#f8fbff" stroke="#5b8def"/>
+      <text x="305" y="168">7) History 업데이트</text>
+      <text x="305" y="188">(query, docs) 추가</text>
+      <text x="305" y="208">다음 state 구성</text>
+
+      <rect x="30" y="140" width="220" height="80" rx="10" fill="#f8fbff" stroke="#5b8def"/>
+      <text x="45" y="168">8) 반복 / 종료 판정</text>
+      <text x="45" y="188">max_iter 또는 answer</text>
+      <text x="45" y="208">최종 답 산출</text>
+
+      <line x1="250" y1="65" x2="290" y2="65" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="550" y1="65" x2="590" y2="65" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="830" y1="65" x2="870" y2="65" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="980" y1="100" x2="980" y2="140" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="870" y1="180" x2="830" y2="180" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="590" y1="180" x2="550" y2="180" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="290" y1="180" x2="250" y2="180" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <path d="M 140 140 C 140 115, 380 115, 380 100" fill="none" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+      <text x="170" y="120" fill="#555">loop back</text>
+
+      <rect x="30" y="280" width="1060" height="300" rx="10" fill="#fafafa" stroke="#ddd"/>
+      <text x="45" y="310">논문의 3개 최적화 축</text>
+      <text x="45" y="340">A) Prompt Engineering: Re²Search (reasoning + reflection + search)</text>
+      <text x="45" y="365">B) Actor Tuning: SFT / DPO / PPO (process supervision 데이터 사용)</text>
+      <text x="45" y="390">C) Critic Training: PRM 학습 후 inference에서 후보 action 선택에 사용</text>
+
+      <text x="45" y="430">훈련 파이프라인(간단)</text>
+      <text x="45" y="455">1. Rollout으로 trajectory + intermediate action 수집</text>
+      <text x="45" y="480">2. process reward 라벨링(선호/비선호)</text>
+      <text x="45" y="505">3. Actor(DPO/SFT/PPO) 학습 + Critic(PRM) 학습</text>
+      <text x="45" y="530">4. 추론 시 Best-of-N: actor 생성 → critic 채점 → best action</text>
+
+      <text x="45" y="565">요약: "검색-추론 루프" 자체를 process supervision으로 최적화하는 구조</text>
+    </svg>
+  </div>
+
+  <div class="card">
+    <h2>우리 적용 시 체크포인트</h2>
+    <ul>
+      <li>현재 구현은 actor+critic 루프 중심. 여기에 retrieval를 명시적으로 넣으면 논문형 full loop에 가까워짐.</li>
+      <li><code>random</code>은 기준선, <code>verify_steps</code>는 critic 선택 모드.</li>
+    </ul>
+  </div>
+</body>
+</html>
