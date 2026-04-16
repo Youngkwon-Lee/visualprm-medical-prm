@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import argparse
 import random
@@ -88,20 +89,77 @@ def actor_generate_candidates(sample, cfg, prefix_steps):
     return candidates
 
 
+def extract_query_from_steps(steps, fallback_question=""):
+    """Heuristic query extractor from generated steps."""
+    query_patterns = [
+        r"(?:generated_query|query)\s*[:=]\s*(.+)",
+        r"검색\s*질의\s*[:=]\s*(.+)",
+        r"추가\s*검색\s*[:=]\s*(.+)",
+    ]
+    for step in steps or []:
+        text = str(step.get('text', ''))
+        for pat in query_patterns:
+            m = re.search(pat, text, re.IGNORECASE)
+            if m:
+                q = m.group(1).strip().strip('"\'')
+                if q and q.lower() not in {'none', 'n/a', '없음'}:
+                    return q
+    return fallback_question.strip()
+
+
+def retrieve_docs_via_backend(sample, cfg, query):
+    """Use backend /agent-answer retrieval side-effects to get top-k hits for the query."""
+    base = cfg['backend']['base_url'].rstrip('/')
+    timeout = float(cfg['backend'].get('timeout_sec', 90))
+    top_k = int(cfg.get('rag', {}).get('top_k', 3))
+
+    payload = {
+        'question': query,
+        'options': sample.get('options', []),
+        'gold': normalize_gold(sample),
+        'dataset': sample.get('dataset') or 'pathvqa',
+        'case_type': sample.get('case_type') or 'Medical',
+        'modality': sample.get('modality') or '',
+        'image_url': build_image_url(sample.get('image_url', ''), cfg['data'].get('image_url_prefix', '')),
+        'top_k': top_k,
+        'bon_n': 1,
+        'selection_mode': 'model',
+    }
+    try:
+        out = http_post_json(f"{base}/agent-answer", payload, timeout=timeout)
+        hits = out.get('retrieval_hits', [])[:top_k]
+        docs = []
+        for h in hits:
+            docs.append({
+                'id': h.get('id'),
+                'score': h.get('score'),
+                'question': h.get('question', ''),
+                'case_type': h.get('case_type', ''),
+                'modality': h.get('modality', ''),
+            })
+        return docs, None
+    except Exception as exc:
+        return [], str(exc)
+
+
 def critic_score_candidate(sample, candidate, cfg):
     mode = cfg.get('critic', {}).get('mode', 'verify_steps')
     if mode == 'random':
         return random.random(), {'mode': 'random'}
 
+    steps = candidate.get('steps', []) or []
+    if not steps:
+        return -1.0, {'mode': 'verify_steps', 'error': 'skip_no_steps'}
+
     base = (cfg.get('critic', {}).get('base_url') or cfg['backend']['base_url']).rstrip('/')
-    timeout = float(cfg['backend'].get('timeout_sec', 45))
+    timeout = float(cfg['backend'].get('timeout_sec', 90))
     payload = {
         'question': sample.get('question', ''),
         'options': sample.get('options', []),
         'gold': normalize_gold(sample),
         'case_type': sample.get('case_type') or 'Medical',
         'modality': sample.get('modality') or '',
-        'steps': candidate.get('steps', []),
+        'steps': steps,
     }
     try:
         out = http_post_json(f"{base}/verify-steps", payload, timeout=timeout)
@@ -124,6 +182,7 @@ def run_one(sample, cfg):
 
     final_answer_index = None
     final_answer_letter = None
+    rag_enabled = bool(cfg.get('rag', {}).get('enabled', False))
 
     for t in range(max_iter):
         candidates = actor_generate_candidates(sample, cfg, prefix_steps)
@@ -138,19 +197,42 @@ def run_one(sample, cfg):
         final_answer_index = best_cand.get('final_answer_index')
         final_answer_letter = best_cand.get('final_answer_letter')
 
+        generated_query = extract_query_from_steps(best_cand.get('steps', []), sample.get('question', '')) if rag_enabled else ''
+        retrieved_docs = []
+        retrieval_error = None
+
+        # RAG branch: query -> retrieval -> history(prefix) update
+        if rag_enabled and generated_query:
+            retrieved_docs, retrieval_error = retrieve_docs_via_backend(sample, cfg, generated_query)
+            if retrieved_docs:
+                doc_lines = [
+                    f"- id={d.get('id')} score={d.get('score')} case_type={d.get('case_type')} modality={d.get('modality')} q={d.get('question')}"
+                    for d in retrieved_docs
+                ]
+                retrieval_step = {
+                    'title': f"Retrieved Evidence (step {t+1})",
+                    'text': "query: " + generated_query + "\n" + "\n".join(doc_lines),
+                }
+                prefix_steps = (best_cand.get('steps', []) or []) + [retrieval_step]
+            else:
+                prefix_steps = best_cand.get('steps', [])
+        else:
+            prefix_steps = best_cand.get('steps', [])
+
         trace.append({
             'step': t,
             'best_score': best['score'],
             'best_answer_index': final_answer_index,
             'best_answer_letter': final_answer_letter,
+            'generated_query': generated_query,
+            'retrieved_docs_count': len(retrieved_docs),
+            'retrieval_error': retrieval_error,
             'best_steps': best_cand.get('steps', []),
             'all_scores': [item['score'] for item in scored],
             'all_candidates': scored if cfg['output'].get('save_candidates', True) else None,
         })
 
-        prefix_steps = best_cand.get('steps', [])
-
-        if stop_if_answer and final_answer_index is not None:
+        if stop_if_answer and final_answer_index is not None and not (rag_enabled and generated_query and t < max_iter - 1):
             if prev_answer == final_answer_index:
                 same_answer_rounds += 1
             else:
@@ -159,11 +241,19 @@ def run_one(sample, cfg):
             if same_answer_rounds >= early_same:
                 break
 
+    # Fallback: 모델이 끝까지 답 인덱스를 못 내면 0번 옵션으로 안전 대체
+    fallback_used = False
+    if final_answer_index is None:
+        final_answer_index = 0
+        final_answer_letter = 'A'
+        fallback_used = True
+
     return {
         'final_answer_index': final_answer_index,
         'final_answer_letter': final_answer_letter,
         'gold': normalize_gold(sample),
-        'correct': (final_answer_index == normalize_gold(sample)) if final_answer_index is not None else False,
+        'correct': (final_answer_index == normalize_gold(sample)),
+        'fallback_used': fallback_used,
         'trace': trace,
     }
 

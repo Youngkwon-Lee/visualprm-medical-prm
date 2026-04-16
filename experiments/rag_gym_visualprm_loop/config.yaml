@@ -12,7 +12,7 @@ data:
   image_url_prefix: "http://100.125.26.99:8766/visualprm"  # 이미지 절대 URL prefix
 
 loop:
-  max_iter: 1
+  max_iter: 2
   num_actions: 3
   temperature: 0.8
   top_p: 1.0
@@ -22,6 +22,10 @@ loop:
 critic:
   mode: verify_steps   # verify_steps | random
   base_url: ""  # 단일 백엔드(8764) 사용
+
+rag:
+  enabled: true
+  top_k: 3
 
 output:
   dir: /mnt/d/visualprm/experiments/rag_gym_visualprm_loop/outputs
