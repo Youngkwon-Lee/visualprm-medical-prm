@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VisualPRM Loop 파이프라인 도식 (2026-04-16)</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', Arial, sans-serif; margin: 24px; color:#111; }
+    .card { border:1px solid #ddd; border-radius:10px; padding:14px; margin:12px 0; }
+    .muted { color:#666; }
+    code { background:#f4f4f4; padding:2px 6px; border-radius:6px; }
+    svg text { font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>내가 구축한 파이프라인 도식</h1>
+  <p class="muted">RAG-Gym 스타일 루프 + VisualPRM critic 구조 (업데이트: 2026-04-16)</p>
+
+  <div class="card">
+    <svg width="1100" height="520" viewBox="0 0 1100 520" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#333" />
+        </marker>
+      </defs>
+
+      <!-- Boxes -->
+      <rect x="30" y="40" width="180" height="70" rx="10" fill="#f8fbff" stroke="#5b8def"/>
+      <text x="45" y="68">1) 데이터 로드</text>
+      <text x="45" y="88">PathVQA JSON</text>
+
+      <rect x="250" y="40" width="220" height="70" rx="10" fill="#f8fbff" stroke="#5b8def"/>
+      <text x="265" y="68">2) 상태 구성</text>
+      <text x="265" y="88">question / options / image_url</text>
+
+      <rect x="510" y="40" width="220" height="70" rx="10" fill="#eefcf3" stroke="#35a867"/>
+      <text x="525" y="68">3) Actor 생성</text>
+      <text x="525" y="88">/generate-steps (N개 후보)</text>
+
+      <rect x="770" y="40" width="220" height="70" rx="10" fill="#fff8ef" stroke="#d8891c"/>
+      <text x="785" y="68">4) Critic 채점</text>
+      <text x="785" y="88">random 또는 /verify-steps</text>
+
+      <rect x="770" y="150" width="220" height="70" rx="10" fill="#fff8ef" stroke="#d8891c"/>
+      <text x="785" y="178">5) 최고점 선택</text>
+      <text x="785" y="198">argmax(score)</text>
+
+      <rect x="510" y="150" width="220" height="70" rx="10" fill="#eefcf3" stroke="#35a867"/>
+      <text x="525" y="178">6) 루프 갱신</text>
+      <text x="525" y="198">prefix_steps 업데이트</text>
+
+      <rect x="250" y="150" width="220" height="70" rx="10" fill="#f8fbff" stroke="#5b8def"/>
+      <text x="265" y="178">7) 종료 판정</text>
+      <text x="265" y="198">max_iter 또는 답 확정</text>
+
+      <rect x="30" y="150" width="180" height="70" rx="10" fill="#f8fbff" stroke="#5b8def"/>
+      <text x="45" y="178">8) 결과 저장</text>
+      <text x="45" y="198">summary / inference_results</text>
+
+      <!-- arrows top row -->
+      <line x1="210" y1="75" x2="250" y2="75" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="470" y1="75" x2="510" y2="75" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="730" y1="75" x2="770" y2="75" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- arrows down and back -->
+      <line x1="880" y1="110" x2="880" y2="150" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="770" y1="185" x2="730" y2="185" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="510" y1="185" x2="470" y2="185" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="250" y1="185" x2="210" y2="185" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- loop feedback -->
+      <path d="M 360 150 C 360 130, 620 130, 620 110" fill="none" stroke="#6b6b6b" stroke-width="2" marker-end="url(#arrow)"/>
+      <text x="430" y="125" fill="#555">반복 (t < max_iter)</text>
+
+      <!-- notes -->
+      <rect x="30" y="270" width="960" height="210" rx="10" fill="#fafafa" stroke="#ddd"/>
+      <text x="45" y="300">운영 메모</text>
+      <text x="45" y="325">• 현재 입력: 이미지+텍스트 (image_url_prefix로 절대 URL 변환)</text>
+      <text x="45" y="350">• critic 모드: random(스모크) / verify_steps(본실험)</text>
+      <text x="45" y="375">• 최근 결과: 3샘플, max_iter=1, num_actions=3, verify_steps → Accuracy 0.6667</text>
+      <text x="45" y="400">• 산출물: outputs/summary.json, outputs/inference_results.json</text>
+      <text x="45" y="425">• 다음: random vs verify_steps A/B를 10~20샘플로 확장</text>
+    </svg>
+  </div>
+</body>
+</html>
