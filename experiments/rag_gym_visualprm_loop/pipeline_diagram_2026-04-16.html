@@ -94,5 +94,50 @@
     </ol>
     <p>참고: <code>random</code> 모드면 2단계 채점 대신 후보를 무작위로 고릅니다.</p>
   </div>
+
+  <div class="card">
+    <h2>논문 파이프라인 vs 현재 구현 (1:1 매핑)</h2>
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="border:1px solid #ddd; padding:8px; text-align:left; background:#fafafa;">논문(RAG-Gym)</th>
+          <th style="border:1px solid #ddd; padding:8px; text-align:left; background:#fafafa;">현재 구현</th>
+          <th style="border:1px solid #ddd; padding:8px; text-align:left; background:#fafafa;">상태</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="border:1px solid #ddd; padding:8px;">State = Question + History</td>
+          <td style="border:1px solid #ddd; padding:8px;">question/options/image_url + prefix_steps</td>
+          <td style="border:1px solid #ddd; padding:8px;">구현됨</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #ddd; padding:8px;">Actor 후보 행동 N개 생성</td>
+          <td style="border:1px solid #ddd; padding:8px;"><code>/generate-steps</code> N회 호출</td>
+          <td style="border:1px solid #ddd; padding:8px;">구현됨</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #ddd; padding:8px;">Critic(PRM) 채점</td>
+          <td style="border:1px solid #ddd; padding:8px;"><code>/verify-steps</code> 또는 <code>random</code></td>
+          <td style="border:1px solid #ddd; padding:8px;">구현됨 (안정화 필요)</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #ddd; padding:8px;">Best action 선택</td>
+          <td style="border:1px solid #ddd; padding:8px;">argmax(score)</td>
+          <td style="border:1px solid #ddd; padding:8px;">구현됨</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #ddd; padding:8px;">query → retrieval → history 업데이트</td>
+          <td style="border:1px solid #ddd; padding:8px;">명시적 query/retrieval 루프는 미연결</td>
+          <td style="border:1px solid #ddd; padding:8px;">미완 (다음 작업)</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #ddd; padding:8px;">answer 확정 시 종료</td>
+          <td style="border:1px solid #ddd; padding:8px;">final_answer_index 확정 + fallback</td>
+          <td style="border:1px solid #ddd; padding:8px;">구현됨</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </body>
 </html>
