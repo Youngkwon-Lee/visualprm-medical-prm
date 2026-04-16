@@ -47,13 +47,13 @@
         </tr>
         <tr>
           <td>이미지 입력</td>
-          <td>부분 비활성</td>
-          <td>상대경로 이미지(<code>images/...</code>)를 원격 Ollama가 직접 못 읽는 이슈로 임시 비활성 처리</td>
+          <td>활성 (HTTP URL)</td>
+          <td><code>image_url_prefix=http://100.125.26.99:8766/visualprm</code>로 상대경로를 절대 URL로 변환해 전달</td>
         </tr>
         <tr>
           <td>결론</td>
-          <td><b>현재는 사실상 텍스트 중심 추론</b></td>
-          <td>멀티모달 완전 모드 아님</td>
+          <td><b>현재는 이미지+텍스트 멀티모달 입력으로 실행</b></td>
+          <td>단, 성능 평가는 소샘플(3개) 기준이므로 확장 검증 필요</td>
         </tr>
       </tbody>
     </table>
@@ -70,7 +70,16 @@
   </div>
 
   <div class="card">
-    <h2>4) 출력 파일</h2>
+    <h2>4) 최신 실행 결과 (2026-04-16)</h2>
+    <ul>
+      <li>세팅: <code>샘플 수=3</code>, <code>문제당 루프 횟수=1</code>, <code>후보 답안 수=3</code>, <code>critic=verify_steps</code></li>
+      <li>모델: <code>gemini-2.5-flash</code> (generate/verify)</li>
+      <li>결과: <code>2/3</code>, Accuracy <code>0.6667</code></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>5) 출력 파일</h2>
     <ul>
       <li><code>experiments/rag_gym_visualprm_loop/outputs/inference_results.json</code></li>
       <li><code>experiments/rag_gym_visualprm_loop/outputs/summary.json</code></li>
