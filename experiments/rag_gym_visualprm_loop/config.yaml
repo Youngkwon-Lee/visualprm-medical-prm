@@ -4,23 +4,23 @@ experiment:
 
 backend:
   base_url: http://127.0.0.1:8764
-  timeout_sec: 45
+  timeout_sec: 90
 
 data:
   input_path: /mnt/d/visualprm/pathvqa_test_for_app.json
-  max_samples: 2
-  image_url_prefix: ""  # 예: http://100.125.26.99:8766/visualprm/
+  max_samples: 3
+  image_url_prefix: "http://100.125.26.99:8766/visualprm"  # 이미지 절대 URL prefix
 
 loop:
   max_iter: 1
-  num_actions: 2
+  num_actions: 3
   temperature: 0.8
   top_p: 1.0
   stop_if_answer: true
   early_stop_same_answer_rounds: 2
 
 critic:
-  mode: random   # verify_steps | random
+  mode: verify_steps   # verify_steps | random
   base_url: ""  # 단일 백엔드(8764) 사용
 
 output:
