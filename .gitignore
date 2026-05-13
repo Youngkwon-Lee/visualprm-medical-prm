@@ -19,6 +19,12 @@ _tmp*
 # Local caches / extracted datasets
 .hf_cache/
 OmniMedVQA/
+openclaw_harness/.venv/
+openclaw_harness/.venv312/
+openclaw_harness/__pycache__/
+openclaw_harness/native_openclaw_cache/
+openclaw_harness/results/
+openclaw_harness/results_native_openclaw/
 
 # Large local assets
 images/
