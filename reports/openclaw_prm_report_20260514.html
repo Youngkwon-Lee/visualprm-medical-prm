@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenClaw + MedVisualPRM Report - 2026-05-14</title>
+  <style>
+    :root {
+      --bg: #f4efe6;
+      --paper: #fffdf8;
+      --ink: #1b1a17;
+      --muted: #5d574f;
+      --line: #d9cdbd;
+      --accent: #8f3b2e;
+      --accent-2: #1f5f5b;
+      --good: #1d6b43;
+      --warn: #8a5b12;
+      --bad: #8a2b2b;
+      --shadow: 0 18px 40px rgba(57, 42, 26, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(143, 59, 46, 0.08), transparent 28%),
+        radial-gradient(circle at top right, rgba(31, 95, 91, 0.08), transparent 24%),
+        var(--bg);
+      color: var(--ink);
+      font: 16px/1.55 "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 40px 24px 64px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(143, 59, 46, 0.95), rgba(89, 33, 25, 0.94));
+      color: #fff9f1;
+      border-radius: 28px;
+      padding: 34px 36px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -80px auto;
+      width: 280px;
+      height: 280px;
+      border-radius: 999px;
+      background: rgba(255, 245, 230, 0.08);
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      opacity: 0.82;
+      margin-bottom: 10px;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      line-height: 1.12;
+      font-weight: 700;
+    }
+
+    h1 {
+      font-size: clamp(34px, 5vw, 56px);
+      max-width: 900px;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      font-size: 28px;
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    .hero p {
+      max-width: 880px;
+      margin: 0;
+      font-size: 18px;
+      color: rgba(255, 249, 241, 0.9);
+    }
+
+    .section {
+      margin-top: 28px;
+      background: var(--paper);
+      border: 1px solid rgba(217, 205, 189, 0.9);
+      border-radius: 24px;
+      padding: 26px 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 22px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,241,232,0.95));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .card .label {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .card .value {
+      font-size: 34px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .card .note {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 14px;
+      border: 1px solid var(--line);
+      background: #faf5ed;
+    }
+
+    .pill.used {
+      color: var(--good);
+      border-color: rgba(29, 107, 67, 0.25);
+      background: rgba(29, 107, 67, 0.08);
+    }
+
+    .pill.not-used {
+      color: var(--bad);
+      border-color: rgba(138, 43, 43, 0.25);
+      background: rgba(138, 43, 43, 0.08);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    code {
+      font-family: "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+      font-size: 0.92em;
+      background: rgba(27, 26, 23, 0.05);
+      padding: 2px 6px;
+      border-radius: 6px;
+      word-break: break-word;
+    }
+
+    .kicker {
+      color: var(--accent-2);
+      font-size: 13px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .metric-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 16px;
+      margin-top: 14px;
+    }
+
+    .metric {
+      border-left: 3px solid var(--accent-2);
+      padding-left: 12px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 18px;
+    }
+
+    .bars {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 180px 1fr 70px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .bar {
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(27, 26, 23, 0.08);
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent-2), #5aa59f);
+    }
+
+    .callout {
+      border-left: 4px solid var(--accent);
+      padding: 14px 16px;
+      background: rgba(143, 59, 46, 0.06);
+      border-radius: 12px;
+      margin-top: 16px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .footer {
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .cards,
+      .grid-2,
+      .metric-list {
+        grid-template-columns: 1fr;
+      }
+
+      .bar-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="eyebrow">VisualPRM / OpenClaw / Medical VQA</div>
+      <h1>OpenClaw + MedVisualPRM 진행 현황 보고</h1>
+      <p>
+        오늘 기준으로 완주한 큰 실험은 <code>1147</code>문항 전체 평가 1회이고, 이 결과는
+        <strong>PRM을 쓰지 않은</strong> <code>pathvqa-vision-direct</code> baseline입니다.
+        별도로 <code>OpenClaw native/web agent</code>와 <code>PRM rerank</code>는 10샘플 단위 파일럿에서 검증 중입니다.
+      </p>
+    </section>
+
+    <section class="section">
+      <div class="kicker">Snapshot</div>
+      <h2>핵심 요약</h2>
+      <div class="cards">
+        <div class="card">
+          <div class="label">Full Run</div>
+          <div class="value">34.52%</div>
+          <div class="note">1147문항 전체 정확도<br />pathvqa-vision-direct, PRM 없음</div>
+        </div>
+        <div class="card">
+          <div class="label">Closed Only</div>
+          <div class="value">54.26%</div>
+          <div class="note">669 closed 문항 정확도<br />open 문항은 6.90%</div>
+        </div>
+        <div class="card">
+          <div class="label">Best Pilot</div>
+          <div class="value">100%</div>
+          <div class="note">R-PathVQA closed 10샘플<br /><code>pathvqa-web</code> local embedded</div>
+        </div>
+        <div class="card">
+          <div class="label">PRM Pilot</div>
+          <div class="value">90%</div>
+          <div class="note">같은 10샘플에서 PRM rerank 적용 시<br />majority 10/10 → PRM 9/10</div>
+        </div>
+        <div class="card">
+          <div class="label">Native+PRM</div>
+          <div class="value">30.0%</div>
+          <div class="note">RunPod <code>pathvqa-native-strict + PRM</code><br />10샘플 중 correct 3, invalid 1</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <div>
+        <div class="kicker">Completed Full Evaluation</div>
+        <h2>1147문항 풀런은 실제로 무엇을 썼나</h2>
+        <p>
+          완주한 <code>1147</code> 결과 파일은
+          <code>/Users/youngkwon/projects/visualprm_openclaw_harness/results_native_openclaw/full_pathvqa-vision-direct_gateway_0_1147_20260513.jsonl</code>
+          입니다. 이 런은 <code>OpenClaw gateway</code>를 감쌌지만,
+          실질적으로는 <code>ollama/gemma3:4b</code>가 이미지 경로를 직접 보고 답하는
+          <strong>no-tool vision baseline</strong>이었습니다.
+        </p>
+        <div class="pill-row">
+          <span class="pill used">사용: <code>pathvqa-vision-direct</code></span>
+          <span class="pill used">사용: <code>OpenClaw gateway</code></span>
+          <span class="pill used">사용: <code>ollama/gemma3:4b</code></span>
+          <span class="pill not-used">미사용: <code>SNUH-C/medvisualprm-branch-b</code></span>
+          <span class="pill not-used">미사용: <code>image</code> tool</span>
+          <span class="pill not-used">미사용: <code>web_search</code> / <code>web_fetch</code></span>
+          <span class="pill not-used">미사용: RAG</span>
+          <span class="pill not-used">미사용: actor-critic rerank loop</span>
+        </div>
+        <div class="callout">
+          요점: 지금까지 나온 <code>1147</code> 결과는
+          <strong>OpenClaw tool agent 성능</strong>이나
+          <strong>PRM 효과</strong>를 보여주는 결과가 아닙니다.
+          이 결과는 별도의 baseline으로 해석해야 합니다.
+        </div>
+      </div>
+      <div>
+        <div class="kicker">Full Run Metrics</div>
+        <h2>1147 결과 요약</h2>
+        <div class="metric-list">
+          <div class="metric">
+            <strong>396 / 1147</strong>
+            Overall accuracy = 34.52%
+          </div>
+          <div class="metric">
+            <strong>396 / 1119</strong>
+            Valid-only accuracy = 35.39%
+          </div>
+          <div class="metric">
+            <strong>14.48s</strong>
+            Average latency
+          </div>
+          <div class="metric">
+            <strong>12.17s</strong>
+            Median latency
+          </div>
+        </div>
+        <div class="bars">
+          <div class="bar-row">
+            <div>R-PathVQA closed</div>
+            <div class="bar"><span style="width: 59%;"></span></div>
+            <div>59.0%</div>
+          </div>
+          <div class="bar-row">
+            <div>R-PathVQA open</div>
+            <div class="bar"><span style="width: 1.67%;"></span></div>
+            <div>1.67%</div>
+          </div>
+          <div class="bar-row">
+            <div>R-RAD closed</div>
+            <div class="bar"><span style="width: 54.04%;"></span></div>
+            <div>54.04%</div>
+          </div>
+          <div class="bar-row">
+            <div>R-RAD open</div>
+            <div class="bar"><span style="width: 15.64%;"></span></div>
+            <div>15.64%</div>
+          </div>
+          <div class="bar-row">
+            <div>Utah-WebPath closed</div>
+            <div class="bar"><span style="width: 40.21%;"></span></div>
+            <div>40.21%</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="kicker">Current Experiment Matrix</div>
+      <h2>보고용 실험 구조와 현재 확보된 결과</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Condition</th>
+            <th>Actor / Critic</th>
+            <th>Tool 설정</th>
+            <th>Dataset / N</th>
+            <th>Accuracy</th>
+            <th>Latency</th>
+            <th>Status / Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Production Baseline</strong><br />vision-direct full run</td>
+            <td>Actor: <code>gemma3:4b</code><br />Critic: 없음</td>
+            <td>tool off<br />web off<br />PRM off</td>
+            <td>Full mixed benchmark<br /><code>1147</code></td>
+            <td><strong>34.52%</strong><br />closed 54.26%<br />open 6.90%</td>
+            <td>avg <code>14.48s</code></td>
+            <td>완주 완료. PRM 결과가 아니라 no-tool vision baseline.</td>
+          </tr>
+          <tr>
+            <td><strong>A. Direct VLM</strong><br />image + question only</td>
+            <td>Actor: direct <code>gemma3:4b</code><br />Critic: 없음</td>
+            <td>OpenClaw 미사용<br />tool off<br />web off</td>
+            <td>R-PathVQA closed<br /><code>10</code></td>
+            <td><strong>5 / 10 = 50.0%</strong></td>
+            <td>avg <code>2.97s</code></td>
+            <td>가장 빠른 순수 VLM baseline.</td>
+          </tr>
+          <tr>
+            <td><strong>B. OpenClaw native-strict</strong><br />image only, web off</td>
+            <td>Actor: <code>qwen2.5:7b-instruct</code><br />image model: <code>gemma3:4b</code><br />Critic: 없음</td>
+            <td><code>image</code> only<br />web off</td>
+            <td>R-PathVQA closed<br /><code>10</code></td>
+            <td><strong>4 / 10 = 40.0%</strong></td>
+            <td>avg <code>68.95s</code></td>
+            <td>같은 10샘플 비교용 local run. 모든 row에서 <code>image</code>만 1회 사용.</td>
+          </tr>
+          <tr>
+            <td><strong>C. OpenClaw web agent</strong><br />agentic RAG pilot</td>
+            <td>Actor: <code>qwen2.5:7b-instruct</code><br />image model: <code>gemma3:4b</code><br />Critic: 없음</td>
+            <td><code>image</code> + <code>web_search</code> + <code>web_fetch</code></td>
+            <td>R-PathVQA closed<br /><code>10</code></td>
+            <td><strong>10 / 10 = 100%</strong></td>
+            <td>avg <code>76.30s</code></td>
+            <td>현재 소규모 파일럿에서 가장 높은 accuracy. 다만 매우 느림.</td>
+          </tr>
+          <tr>
+            <td><strong>D. OpenClaw web agent + PRM</strong><br />agentic RAG + critic</td>
+            <td>Actor: <code>pathvqa-web</code><br />Critic: <code>SNUH-C/medvisualprm-branch-b</code></td>
+            <td>same candidate pool as C<br />candidate mean = <code>2.4</code></td>
+            <td>R-PathVQA closed<br /><code>10</code></td>
+            <td><strong>9 / 10 = 90.0%</strong></td>
+            <td>candidate generation pool avg <code>219.02s</code></td>
+            <td>PRM이 1개 샘플에서 web-heavy rationale을 높게 선택해 majority보다 하락.</td>
+          </tr>
+          <tr>
+            <td><strong>E. OpenClaw native-strict + PRM</strong><br />reasoning + critic 분리</td>
+            <td>Actor: <code>pathvqa-native-strict</code><br />Critic: <code>medvisualprm-branch-b</code></td>
+            <td><code>image</code> only + PRM rerank</td>
+            <td>RunPod pilot<br /><code>10</code></td>
+            <td><strong>3 / 10 = 30.0%</strong><br />valid-only: 3 / 9 = 33.33%<br />majority same rows와 동일</td>
+            <td>candidate stage total <code>26.0min</code><br />PRM rerank 완료</td>
+            <td>실험 완료. 이번 pilot에서는 actor가 약했고 PRM 추가 이득도 없었음.</td>
+          </tr>
+          <tr>
+            <td><strong>F. Utah vision-direct + PRM</strong><br />Gemma4 only</td>
+            <td>Actor: <code>gemma4:e4b</code><br />Critic: <code>medvisualprm-branch-b</code></td>
+            <td>direct vision<br />tool off<br />web off</td>
+            <td>Utah-WebPath closed<br /><code>97</code></td>
+            <td><strong>59 / 97 = 60.82%</strong><br />candidate stage: 55 / 97 = 56.70%</td>
+            <td>장시간 local run</td>
+            <td>완료. Gemma4 direct vision 기준으로 현재 가장 해석이 깔끔한 Utah 결과.</td>
+          </tr>
+          <tr>
+            <td><strong>G. Utah vision-and-web + PRM</strong><br />Gemma4 only</td>
+            <td>Actor: <code>gemma4:e4b</code><br />Critic: <code>medvisualprm-branch-b</code></td>
+            <td>direct vision + <code>web_search/web_fetch</code></td>
+            <td>Utah-WebPath closed<br /><code>97</code></td>
+            <td><strong>55 / 97 = 56.70%</strong><br />candidate stage: 46 / 97 = 47.42%</td>
+            <td>장시간 local run</td>
+            <td>완료. 다만 실제 trace는 <code>web_search</code> 중심이어서 fair한 vision+web grounding 비교로 보긴 어려움.</td>
+          </tr>
+          <tr>
+            <td><strong>H. Utah vision-and-web-no-utah-search + PRM</strong><br />Gemma4 only</td>
+            <td>Actor: <code>gemma4:e4b</code><br />Critic: <code>medvisualprm-branch-b</code></td>
+            <td>direct vision + <code>web_search/web_fetch</code><br />Utah / filename / sample-id search 금지</td>
+            <td>Utah-WebPath closed<br /><code>97</code></td>
+            <td><strong>53 / 97 = 54.64%</strong><br />candidate stage: 54 / 97 = 55.67%<br />valid-only PRM: 53 / 96 = 55.21%</td>
+            <td>장시간 local run</td>
+            <td>완료. Utah 직접 검색 금지를 걸어도 여전히 web-dominant 경향이 남았고, PRM이 candidate stage보다 소폭 하락했습니다.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small">
+        주의: <strong>B/C/D/E는 모두 pilot 규모</strong>입니다. 현재 Utah 기준으로는
+        <code>F</code>, <code>G</code>, <code>H</code>가 full <code>97</code> 완주 결과입니다.
+      </p>
+      <div class="callout">
+        추가 smoke 확인: 최신 strict-step 설정으로 Utah 앞 <code>2</code>문항을 다시 돌렸을 때
+        <code>vision-direct</code>, <code>vision-and-web</code>, <code>vision-and-web-no-utah-search</code>
+        모두 <code>0 / 2</code>였습니다. direct vision은 이미지를 직접 보고도 gross finding을 잘못 읽었고,
+        web 계열은 일부 row에서 <code>pred=None</code>이나 self-referential output이 섞여
+        형식 안정성까지 흔들렸습니다.
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <div>
+        <div class="kicker">Post-Utah Follow-ups</div>
+        <h2>F/G/H 이후에 추가로 확인한 것</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>실험</th>
+              <th>설정</th>
+              <th>결과</th>
+              <th>의미</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>I. strict-step smoke</strong></td>
+              <td><code>gemma4:e4b</code><br /><code>vision-direct</code>, <code>vision-and-web</code>, <code>vision-and-web-no-utah-search</code><br />Utah 앞 2문항</td>
+              <td>세 조건 모두 <strong>0 / 2</strong></td>
+              <td>step 형식을 더 빡세게 묶어도 visual grounding 자체는 크게 개선되지 않았음.</td>
+            </tr>
+            <tr>
+              <td><strong>J. gemma4 actor + gemma3 image tool + PRM</strong></td>
+              <td>Actor: <code>gemma4:e4b</code><br />Image tool: <code>gemma3:4b</code><br />Critic: <code>medvisualprm-branch-b</code></td>
+              <td><strong>0 / 2</strong></td>
+              <td>중요: 이 조합은 <strong>end-to-end tool integration 자체는 성공</strong>. 다만 정답 품질은 여전히 낮았음.</td>
+            </tr>
+            <tr>
+              <td><strong>K. gemma3 direct vision + strict-step + PRM</strong></td>
+              <td><code>gemma3:4b</code><br />tool off<br />Utah 앞 2문항</td>
+              <td><strong>0 / 2</strong></td>
+              <td><code>gemma4</code>만의 문제라기보다, 현재 direct-vision 도메인 해석 전반이 약한 쪽으로 보임.</td>
+            </tr>
+            <tr>
+              <td><strong>L. OpenClaw 없이 gemma4 direct</strong></td>
+              <td>Ollama direct call<br /><code>gemma4:e4b</code><br />Utah 앞 2문항</td>
+              <td><strong>0 / 2</strong><br />두 문항 모두 <code>pred=None</code></td>
+              <td>문제의 핵심이 OpenClaw wrapper 하나만은 아니라는 점을 확인.</td>
+            </tr>
+            <tr>
+              <td><strong>M. 후보 다양성 v2</strong></td>
+              <td><code>gemma4:e4b</code><br />Utah <code>10,11</code>번 샘플<br />attempt1=observation-first<br />attempt2=option-elimination-first</td>
+              <td><strong>0 / 2</strong></td>
+              <td>프롬프트 스타일을 바꿔도 서로 다른 정답 후보가 생기지 않고 같은 오답 방향으로 수렴.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          요약: 후속 smoke들은 “PRM을 더 붙이면 해결된다”보다는
+          <strong>기본 visual interpretation과 후보 품질이 먼저</strong>라는 쪽을 더 강하게 지지했습니다.
+        </div>
+      </div>
+      <div>
+        <div class="kicker">Model / Tool Compatibility</div>
+        <h2>현재까지 확인된 모델 조합</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>모델</th>
+              <th>Actor</th>
+              <th>Image tool</th>
+              <th>비고</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>gemma4:e4b</code></td>
+              <td>가능</td>
+              <td>불안정</td>
+              <td><code>vision-direct</code> actor는 가능하지만 OpenClaw <code>image</code> tool에선 <code>Image model returned no text</code>.</td>
+            </tr>
+            <tr>
+              <td><code>gemma3:4b</code></td>
+              <td>불가</td>
+              <td>가능</td>
+              <td>OpenClaw <code>image describe</code>는 성공하지만 actor/tool-calling 경로는 <code>does not support tools</code>.</td>
+            </tr>
+            <tr>
+              <td><code>qwen2.5:7b-instruct</code></td>
+              <td>가능</td>
+              <td>불가</td>
+              <td>tool-calling actor로는 동작, image model로는 부적합.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <div>
+        <div class="kicker">Implementation Notes</div>
+        <h2>툴을 어디서 붙이고 어디 코드를 쓰나</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>역할</th>
+              <th>파일</th>
+              <th>설명</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Agent profile 생성</td>
+              <td><a href="file:///Users/youngkwon/projects/visualprm_openclaw_harness/setup_pathvqa_openclaw_agents.py"><code>setup_pathvqa_openclaw_agents.py</code></a></td>
+              <td><code>vision-direct</code>, <code>vision-and-web</code>, <code>image-only</code> 같은 실험용 agent preset과 <code>tools.allow / tools.deny</code>를 생성. 핵심은 <code>build_agents(...)</code>.</td>
+            </tr>
+            <tr>
+              <td>OpenClaw config</td>
+              <td><a href="file:///Users/youngkwon/.openclaw/openclaw_gemma4_only.json"><code>openclaw_gemma4_only.json</code></a></td>
+              <td>실제 agent별 모델, system prompt, tool allow/deny가 들어 있는 런타임 설정. <code>tools.allow</code>, <code>tools.deny</code>를 여기서 최종 확인.</td>
+            </tr>
+            <tr>
+              <td>Prompt / candidate generation</td>
+              <td><a href="file:///Users/youngkwon/projects/visualprm_openclaw_harness/run_openclaw_pathvqa_native.py"><code>run_openclaw_pathvqa_native.py</code></a></td>
+              <td>sample별 prompt 생성, strict step 규칙, majority 집계, session/tool trace 수집까지 담당. 주요 함수: <code>build_prompt(...)</code>, <code>allowed_tools_for(...)</code>, <code>inspect_session_tools(...)</code>.</td>
+            </tr>
+            <tr>
+              <td>PRM rerank</td>
+              <td><a href="file:///Users/youngkwon/projects/visualprm_openclaw_harness/run_medvisualprm_rerank.py"><code>run_medvisualprm_rerank.py</code></a></td>
+              <td>동료 PRM 모델 <code>SNUH-C/medvisualprm-branch-b</code>를 외부 critic으로 호출해 후보를 점수화.</td>
+            </tr>
+            <tr>
+              <td>실험 실행 wrapper</td>
+              <td><a href="file:///Users/youngkwon/projects/visualprm_openclaw_harness/run_local_pathvqa_web_prm_full.sh"><code>run_local_pathvqa_web_prm_full.sh</code></a></td>
+              <td>candidate 생성 후 PRM rerank를 순서대로 호출하는 shell wrapper. 여기서 <code>AGENT_ID</code>, <code>VOTES</code>, <code>FULL_VOTES</code> 등을 바꿔 실험 조건을 바꿈.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div class="kicker">Quick Ops</div>
+        <h2>툴 켜고 끄는 방법</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>상황</th>
+              <th>방법</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>tool 완전 끄기</td>
+              <td><code>vision-direct</code>처럼 agent profile에서 <code>tools.allow = []</code>로 두고, prompt에도 <code>Do not call any tools</code>를 명시. 코드 위치: <a href="file:///Users/youngkwon/projects/visualprm_openclaw_harness/setup_pathvqa_openclaw_agents.py"><code>setup_pathvqa_openclaw_agents.py</code></a>, <a href="file:///Users/youngkwon/.openclaw/openclaw_gemma4_only.json"><code>openclaw_gemma4_only.json</code></a>.</td>
+            </tr>
+            <tr>
+              <td>web만 켜기</td>
+              <td><code>vision-and-web</code>처럼 <code>web_search</code>, <code>web_fetch</code>만 allow하고 <code>image</code>는 deny. 코드 위치: <a href="file:///Users/youngkwon/projects/visualprm_openclaw_harness/setup_pathvqa_openclaw_agents.py"><code>setup_pathvqa_openclaw_agents.py</code></a>, <a href="file:///Users/youngkwon/projects/visualprm_openclaw_harness/run_openclaw_pathvqa_native.py"><code>allowed_tools_for(...)</code></a>.</td>
+            </tr>
+            <tr>
+              <td>image tool만 켜기</td>
+              <td><code>image-only</code> / <code>image-once</code> profile처럼 <code>image</code>만 allow하고 web는 deny. 코드 위치: <a href="file:///Users/youngkwon/projects/visualprm_openclaw_harness/setup_pathvqa_openclaw_agents.py"><code>setup_pathvqa_openclaw_agents.py</code></a>.</td>
+            </tr>
+            <tr>
+              <td>코드에서 강제 확인</td>
+              <td><a href="file:///Users/youngkwon/projects/visualprm_openclaw_harness/run_openclaw_pathvqa_native.py"><code>run_openclaw_pathvqa_native.py</code></a>의 <code>allowed_tools_for(...)</code>, <code>required_image_call_count(...)</code>, <code>inspect_session_tools(...)</code>가 실제 사용 여부를 검증.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="small">
+          즉 tool 정책은 <strong>config에서 1차</strong>, <strong>prompt에서 2차</strong>, <strong>후처리 검증에서 3차</strong>로 묶어 둔 구조입니다.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="kicker">Prompting</div>
+      <h2>프롬프트를 어떻게 썼나</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>조건</th>
+            <th>핵심 prompt 요약</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>vision-direct</code></td>
+            <td>“이미지 경로는 direct vision으로 보인다. tool은 쓰지 마라. JSON만 반환하라.”</td>
+          </tr>
+          <tr>
+            <td><code>vision-and-web</code></td>
+            <td>“가능하면 이미지를 먼저 보고 reasoning하되, 필요할 때만 <code>web_search</code>/<code>web_fetch</code>를 써라.”</td>
+          </tr>
+          <tr>
+            <td><code>vision-and-web-no-utah-search</code></td>
+            <td>위와 동일하지만 <code>Utah</code>, 파일명, sample-id, dataset 직접 검색을 금지.</td>
+          </tr>
+          <tr>
+            <td>strict step</td>
+            <td><code>steps</code> 3~6개, 첫 step은 <code>Visual evidence:</code>, 마지막 step은 <code>Decision:</code>, plain string only.</td>
+          </tr>
+          <tr>
+            <td>v2 diversity</td>
+            <td>홀수 attempt는 <code>observation-first</code>, 짝수 attempt는 <code>option-elimination-first</code>로 reasoning style을 다르게 유도.</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        현재까지의 결론은, prompt를 더 엄격하게 만들어도 형식은 정돈되지만
+        <strong>기본 visual read가 틀리면 PRM이 구제하기 어렵다</strong>는 점입니다.
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <div>
+        <div class="kicker">Interpretation</div>
+        <h2>현재까지의 해석</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>질문</th>
+              <th>현재 답</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>PRM을 쓴 1147 전체 결과가 있나?</td>
+              <td>없음. 현재 1147 완주 결과는 모두 PRM 미사용 baseline.</td>
+            </tr>
+            <tr>
+              <td>OpenClaw agent 자체가 이득이 있나?</td>
+              <td>소규모 pilot에서는 같은 10샘플 기준 <code>pathvqa-native-strict = 4/10</code>, <code>pathvqa-web = 10/10</code>으로 web-enabled agent가 훨씬 강했음.</td>
+            </tr>
+            <tr>
+              <td>Utah full 97에서는 web가 실제로 이득이었나?</td>
+              <td>아직 아니었음. <code>vision-direct + PRM = 59/97</code>, <code>vision-and-web + PRM = 55/97</code>, <code>vision-and-web-no-utah-search + PRM = 53/97</code>. Utah 직접 검색 금지를 넣어도 web 사용이 이미지 grounding을 안정적으로 보강하진 못했습니다.</td>
+            </tr>
+            <tr>
+              <td>strict step-by-step을 강제하면 나아졌나?</td>
+              <td>아직 아니었음. 최신 Utah <code>2</code>문항 smoke에서 <code>vision-direct</code>, <code>vision-and-web</code>, <code>vision-and-web-no-utah-search</code> 모두 <code>0/2</code>였다. 형식 강제만으로는 visual grounding 품질 문제를 해결하지 못했다.</td>
+            </tr>
+            <tr>
+              <td>PRM이 바로 성능을 올렸나?</td>
+              <td>아직은 아님. web 10샘플에선 majority 10/10 → PRM 9/10, native-strict 10샘플에선 overall 3/10으로 개선 없음.</td>
+            </tr>
+            <tr>
+              <td>가장 큰 병목은 무엇인가?</td>
+              <td>PRM scoring이 아니라 OpenClaw candidate generation.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          현재 데이터만 보면,
+          <strong>가장 안정적인 큰 결과는 no-tool vision baseline</strong>이고,
+          <strong>작은 pilot에서는 web agent가 강했지만</strong>,
+          <strong>Utah full 97에서는 web가 오히려 성능을 떨어뜨렸습니다</strong>.
+          그 이유는 web가 이미지를 보강하기보다 대체해버려 <code>web_search</code>-dominant trace로 흐른 점에 있습니다.
+          PRM은 아직 “성능 향상 장치”라기보다 “검증 중인 critic”에 가깝습니다.
+          특히 같은 10샘플에서 <code>native-strict</code> actor는 <code>4/10</code>이었고,
+          <code>native-strict + PRM</code> pilot도 <code>3/10</code> 수준이라 critic 이득이 보이지 않았습니다.
+          Utah full 97에서도 <code>no-utah-search</code> 제약은 leakage 완화 의도는 좋았지만, 최종 점수는 <code>53/97</code>로 baseline보다 낮았습니다.
+          최신 strict-step smoke도 세 조건 모두 <code>0/2</code>라서, 현재 병목은 step 형식보다
+          <strong>기본 시각 해석 품질과 web/output 안정성</strong> 쪽에 더 가깝습니다.
+          추가로 Gemma4 후속 실험에서는 <code>GPT teacher few-shot</code>이 Utah smoke에서 <code>1/2</code>, 다음 2문항에서도 <code>1/2</code>로
+          작은 개선을 보였지만, <code>format-only</code> 버전은 다시 <code>0/2</code>였습니다.
+          즉 <strong>형식만 GPT처럼 바꾸는 것보다, teacher demonstration 내용이 실제로 더 중요</strong>하다는 신호가 나왔습니다.
+          Distillation 없이 올리는 방향으로 <code>multi-view</code>, <code>contrast/zoom</code>, 간단 <code>option check</code>, controlled morphology hint를 묶은 smoke도 실행했습니다.
+          결과는 전체 2문항 기준으로는 안정적 개선 실패에 가깝습니다. <code>center-zoom</code> 후보가 skin case에서 정답 <code>Thrombocytopenia</code>를 만들고 PRM이 이를 선택한 부분 신호는 있었지만,
+          heart case는 Gemma4 direct 응답이 비어 모든 후보가 invalid였습니다.
+          따라서 <strong>Gemma4를 prompt/controller/전처리만으로 계속 끌어올리는 방향은 일단 중단</strong>하고,
+          다음 단계는 더 적합한 low-B vision actor 비교로 옮기는 것이 맞습니다.
+        </div>
+      </div>
+      <div>
+        <div class="kicker">Performance</div>
+        <h2>왜 느린가</h2>
+        <div class="metric-list">
+          <div class="metric">
+            <strong>~62s / candidate</strong>
+            RunPod optimized native-strict 기준 후보 생성 비용
+          </div>
+          <div class="metric">
+            <strong>~3.3s / candidate</strong>
+            PRM warm scoring 비용
+          </div>
+          <div class="metric">
+            <strong>265.38s vs 265.57s</strong>
+            1문항에서 <code>parallelism=1</code> vs <code>2</code> 거의 동일
+          </div>
+          <div class="metric">
+            <strong>~5.5x faster</strong>
+            web-heavy baseline 대비 optimized native-strict candidate generation speedup
+          </div>
+          <div class="metric">
+            <strong>Utah 97 complete</strong>
+            <code>vision-direct + PRM = 59/97</code><br /><code>vision-and-web + PRM = 55/97</code>
+          </div>
+        </div>
+        <p class="small">
+          결론: 병렬화는 <strong>single-sample latency</strong>보다
+          <strong>throughput</strong> 개선용입니다. 실제 속도 개선의 핵심은
+          <code>tool 수 축소</code>, <code>retry 감소</code>,
+          <code>candidate 수 축소</code>입니다.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="kicker">Next Step</div>
+      <h2>권장 실험 순서</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>우선순위</th>
+            <th>실험</th>
+            <th>이유</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td><strong>MedGemma 4B access 확보 후 Utah smoke</strong></td>
+            <td>현재 가장 목적에 맞는 low-B medical VLM 후보입니다. 다만 <code>google/medgemma-4b-it</code>는 gated repo라, Hugging Face access 승인 전에는 테스트가 불가능합니다.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><strong>새 vision actor baseline 비교</strong></td>
+            <td>Gemma4 prompt/controller 개선은 작은 smoke에서 안정적 이득이 없었습니다. 다음은 <code>MedGemma 4B</code>, 가능하면 <code>Qwen2.5-VL-7B</code>, <code>LLaVA-Med 7B</code>를 같은 Utah 10문항으로 비교하는 단계입니다.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><strong>PRM은 actor가 좋아진 뒤 다시 붙이기</strong></td>
+            <td>현재 PRM은 정답 후보가 없으면 살릴 수 없습니다. 새 actor가 vision-direct only에서 어느 정도 맞춘 뒤 <code>PRM rerank</code>와 <code>PRM-guided retry</code>를 다시 보는 것이 맞습니다.</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="footer">
+        Source files on disk:
+        <br />
+        <code>/Users/youngkwon/projects/visualprm_openclaw_harness/results_native_openclaw/full_pathvqa-vision-direct_gateway_0_1147_20260513.jsonl</code>
+        <br />
+        <code>/Users/youngkwon/projects/visualprm_openclaw_harness/results_native_openclaw/local_direct_r_pathvqa_0_10.jsonl</code>
+        <br />
+        <code>/Users/youngkwon/projects/visualprm_openclaw_harness/results_native_openclaw/r_pathvqa_closed_pathvqa-web_native_openclaw_0_10_merged.jsonl</code>
+        <br />
+        <code>/Users/youngkwon/projects/visualprm_openclaw_harness/results_native_openclaw/pathvqa_pathvqa-web_majority_0_10_1778377889.jsonl</code>
+        <br />
+        <code>/Users/youngkwon/projects/visualprm_openclaw_harness/results_native_openclaw/prm_compare_pathvqa_web_majority_0_10_20260514.jsonl</code>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
