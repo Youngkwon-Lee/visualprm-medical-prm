@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import os
 import re
@@ -73,7 +74,60 @@ def session_file_for(agent: str, session_id: str) -> Path:
     return OPENCLAW_AGENTS_DIR / agent / "sessions" / f"{session_id}.jsonl"
 
 
+def sample_answer_type(sample: dict) -> str:
+    answer_type = str(sample.get("answer_type") or ("OPEN" if sample.get("gold_text") else "CLOSED")).upper()
+    return "OPEN" if answer_type == "OPEN" else "CLOSED"
+
+
+def normalize_answer_text(value: object) -> str:
+    text = re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+    text = re.sub(r"[^0-9a-z]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def canonicalize_answer_text(value: object) -> str:
+    text = normalize_answer_text(value)
+    alias_groups = {
+        "xray": ["xr", "x ray", "xray", "radiograph", "plain radiograph", "xray image", "x ray image"],
+        "ct": ["ct", "ct scan", "computed tomography", "cat scan"],
+        "mri": ["mri", "magnetic resonance imaging", "mr imaging"],
+        "ultrasound": ["ultrasound", "sonography", "sonogram"],
+        "pa": ["pa", "posteroanterior"],
+        "ap": ["ap", "anteroposterior"],
+    }
+    for canonical, aliases in alias_groups.items():
+        if text == canonical or text in aliases:
+            return canonical
+    return text
+
+
+def compact_answer_text(value: object) -> str:
+    return canonicalize_answer_text(value).replace(" ", "")
+
+
+def open_answer_matches(prediction: object, gold_text: object) -> bool:
+    pred_norm = canonicalize_answer_text(prediction)
+    gold_norm = canonicalize_answer_text(gold_text)
+    if not pred_norm or not gold_norm:
+        return False
+    if pred_norm == gold_norm or compact_answer_text(prediction) == compact_answer_text(gold_text):
+        return True
+    pred_tokens = pred_norm.split()
+    gold_tokens = gold_norm.split()
+    return gold_norm in pred_norm and len(pred_tokens) <= len(gold_tokens) + 4
+
+
+def answer_vote_key(sample: dict, row: dict) -> int | str | None:
+    if sample_answer_type(sample) == "OPEN":
+        key = row.get("normalized_final_answer") or normalize_answer_text(row.get("final_answer"))
+        return key or None
+    pred = row.get("final_answer_index")
+    return int(pred) if isinstance(pred, int) else None
+
+
 def allowed_tools_for(agent: str, input_mode: str = "normal") -> set[str]:
+    if "vision-direct" in agent:
+        return set()
     if input_mode == "question_only":
         if "web" in agent:
             return {"web_search", "web_fetch"}
@@ -100,6 +154,50 @@ def parse_outer_json(output: str) -> dict | None:
     return None
 
 
+def sample_key(sample: dict) -> str:
+    sample_id = sample.get("id", sample.get("sample_id"))
+    if sample_id is not None and str(sample_id).strip():
+        return str(sample_id)
+    return f"idx:{sample.get('idx')}"
+
+
+def slice_samples(rows: list[dict], start_index: int, max_samples: int) -> list[dict]:
+    if max_samples <= 0:
+        return rows[start_index:]
+    return rows[start_index : start_index + max_samples]
+
+
+def load_existing_rows(path: Path) -> tuple[list[dict], set[str], int]:
+    if not path.exists():
+        return [], set(), 0
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    rows: list[dict] = []
+    completed_keys: set[str] = set()
+    duplicates_skipped = 0
+    for line_no, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            if line_no == len(lines):
+                print(
+                    f"[resume] skipping truncated final line in {path} at line {line_no}: {exc}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                break
+            raise ValueError(f"Invalid JSONL row in {path} at line {line_no}: {exc}") from exc
+        key = sample_key({"id": row.get("sample_id", row.get("id")), "idx": row.get("idx")})
+        if key in completed_keys:
+            duplicates_skipped += 1
+            continue
+        completed_keys.add(key)
+        rows.append(row)
+    return rows, completed_keys, duplicates_skipped
+
+
 def load_local_samples(samples_json: str, start_index: int, max_samples: int) -> list[dict]:
     path = Path(samples_json)
     text = path.read_text(encoding="utf-8")
@@ -108,14 +206,29 @@ def load_local_samples(samples_json: str, start_index: int, max_samples: int) ->
     else:
         rows = json.loads(text)
     samples = []
-    for local_offset, sample in enumerate(rows[start_index : start_index + max_samples], start=start_index):
+    for local_offset, sample in enumerate(slice_samples(rows, start_index, max_samples), start=start_index):
+        answer_type = sample_answer_type(sample)
+        options = [str(x) for x in (sample.get("options") or ([] if answer_type == "OPEN" else ["Yes", "No"]))]
+        raw_gold = sample.get("gold", sample.get("answer_index"))
+        gold = None
+        if raw_gold is not None and str(raw_gold).isdigit():
+            gold = int(raw_gold)
+        gold_text = sample.get("gold_text")
+        if answer_type == "OPEN" and not gold_text:
+            raw_answer = sample.get("answer")
+            if isinstance(raw_answer, int) and 0 <= raw_answer < len(options):
+                gold_text = options[raw_answer]
+            elif raw_answer is not None:
+                gold_text = str(raw_answer)
         samples.append(
             {
                 "idx": int(sample.get("idx", local_offset)),
                 "id": sample.get("id", sample.get("sample_id", f"local_{local_offset}")),
                 "question": sample.get("question", ""),
-                "options": [str(x) for x in (sample.get("options") or ["Yes", "No"])],
-                "gold": int(sample.get("gold", sample.get("answer_index", 0))),
+                "options": options,
+                "gold": gold,
+                "gold_text": str(gold_text or ""),
+                "answer_type": answer_type,
                 "image_url": str(sample.get("image_url", sample.get("image_path", ""))),
                 "case_type": str(sample.get("case_type", "")),
                 "modality": str(sample.get("modality", "")),
@@ -137,7 +250,8 @@ def load_samples(dataset: str, start_index: int, max_samples: int, samples_json:
         raise RuntimeError(f"failed to load samples\nstdout={proc.stdout}\nstderr={proc.stderr}")
     rows = json.loads(proc.stdout.lstrip("\ufeff"))
     samples = []
-    for idx in range(start_index, min(len(rows), start_index + max_samples)):
+    stop_index = len(rows) if max_samples <= 0 else min(len(rows), start_index + max_samples)
+    for idx in range(start_index, stop_index):
         sample = rows[idx]
         samples.append(
             {
@@ -146,6 +260,8 @@ def load_samples(dataset: str, start_index: int, max_samples: int, samples_json:
                 "question": sample.get("question", ""),
                 "options": [str(x) for x in (sample.get("options") or [])],
                 "gold": int(sample.get("gold", sample.get("answer_index", 0))),
+                "gold_text": str(sample.get("gold_text") or ""),
+                "answer_type": sample_answer_type(sample),
                 "image_url": str(sample.get("image_url", "")),
                 "case_type": str(sample.get("case_type", "")),
                 "modality": str(sample.get("modality", "")),
@@ -172,6 +288,8 @@ def load_cached_samples(start_index: int, max_samples: int) -> list[dict]:
                 "question": row.get("question", ""),
                 "options": [str(x) for x in row.get("options", ["Yes", "No"])],
                 "gold": int(row.get("gold", 0)),
+                "gold_text": str(row.get("gold_text") or ""),
+                "answer_type": sample_answer_type(row),
                 "image_url": f"images/pathvqa/{image_name}",
                 "case_type": str(row.get("case_type", "")),
                 "modality": str(row.get("modality", "")),
@@ -215,7 +333,19 @@ def ensure_workspace_image(sample: dict) -> Path:
 
 
 def build_prompt(sample: dict, image_path: Path | None, agent: str, input_mode: str) -> str:
+    answer_type = sample_answer_type(sample)
     options = "; ".join(f"{i} {option}" for i, option in enumerate(sample["options"]))
+    strict_tool_instruction = ""
+    if "strict" in agent:
+        strict_tool_instruction = (
+            "When you call the image tool, do it only once and ask it for a terse medical VQA judgment, not a conversation. "
+            "The image tool arguments must contain only the image path and prompt unless the user explicitly requested another field. "
+            "The image tool prompt must restate the question and options and request one short answer with the option index and a brief rationale. "
+            "After the first tool result, never call the image tool again, even if the tool sounds uncertain or asks follow-up questions. "
+            "Do not pass model names, placeholder values such as null, default, or agents.defaults.imageModel, maxImages, maxBytesMb, final_answer, confidence, or other bookkeeping fields into the image tool. "
+            "Before returning JSON, double-check that final_answer_index, final_answer, and rationale agree with each other. "
+            "For yes/no questions, present or positive evidence must map to yes, and absent or negative evidence must map to no. "
+        )
     if input_mode == "question_only":
         tool_instruction = (
             "No image is provided for this leakage-control run. "
@@ -224,11 +354,20 @@ def build_prompt(sample: dict, image_path: Path | None, agent: str, input_mode: 
             "Do not use exec, process, memory_get, memory_search, session_status, SSH, files, VisualPRM, RAG, retrieval backends, or custom batch tools. "
         )
         image_instruction = ""
+    elif "vision-direct" in agent:
+        tool_instruction = (
+            "Do not call any tools. "
+            "The image path below is directly visible to the OpenClaw vision model. "
+            "Inspect the image directly and answer the question. "
+            "Do not use VisualPRM, RAG, retrieval, web, files, exec, process, memory, session tools, or custom batch tools. "
+        )
+        image_instruction = f"Image: {image_path}. "
     elif "web" in agent:
         tool_instruction = (
             "Call OpenClaw's native image tool exactly once to inspect the image; do not call the image tool again. "
             "Use web_search or web_fetch only if the image tool result is unavailable or clearly insufficient. "
             "Do not use exec, process, memory_get, memory_search, session_status, SSH, VisualPRM, RAG, retrieval backends, or custom batch tools. "
+            f"{strict_tool_instruction}"
         )
         image_instruction = f"Image: {image_path}. "
     else:
@@ -236,10 +375,22 @@ def build_prompt(sample: dict, image_path: Path | None, agent: str, input_mode: 
             "Do not use exec, process, web_search, web_fetch, memory_get, memory_search, or session_status. "
             "Do not use any VisualPRM, RAG, retrieval, SSH, or custom batch tool. "
             "Call OpenClaw's native image tool exactly once to inspect the image, then answer; do not call the image tool again. "
+            f"{strict_tool_instruction}"
         )
         image_instruction = f"Image: {image_path}. "
+    if answer_type == "OPEN":
+        return (
+            "Native OpenClaw medical visual QA evaluation. "
+            f"{tool_instruction}"
+            f"{image_instruction}"
+            f"Question: {sample['question']} "
+            "Return exactly one compact JSON object and no markdown with keys: "
+            "sample_id, final_answer, confidence, rationale. "
+            "final_answer must be a short medical answer phrase, not a full paragraph. "
+            "If uncertain, give the most likely concise answer."
+        )
     return (
-        "Native OpenClaw PathVQA evaluation. "
+        "Native OpenClaw medical visual QA evaluation. "
         f"{tool_instruction}"
         f"{image_instruction}"
         f"Question: {sample['question']} "
@@ -257,23 +408,42 @@ def extract_json(text: str) -> dict:
         stripped = re.sub(r"^```(?:json)?\s*", "", stripped)
         stripped = re.sub(r"\s*```$", "", stripped)
     try:
-        return json.loads(stripped)
+        parsed = json.loads(stripped)
+        if isinstance(parsed, dict):
+            if "final_answer" not in parsed:
+                for key in ("answer", "final_answer_text", "response"):
+                    if parsed.get(key) is not None:
+                        parsed["final_answer"] = str(parsed[key])
+                        break
+            if "final_answer_index" not in parsed and parsed.get("answer_index") is not None:
+                parsed["final_answer_index"] = parsed.get("answer_index")
+            return parsed
     except json.JSONDecodeError:
         pass
 
     match = re.search(r"\{.*\}", text, flags=re.S)
     if match:
         try:
-            return json.loads(match.group(0))
+            parsed = json.loads(match.group(0))
+            if isinstance(parsed, dict):
+                if "final_answer" not in parsed:
+                    for key in ("answer", "final_answer_text", "response"):
+                        if parsed.get(key) is not None:
+                            parsed["final_answer"] = str(parsed[key])
+                            break
+                if "final_answer_index" not in parsed and parsed.get("answer_index") is not None:
+                    parsed["final_answer_index"] = parsed.get("answer_index")
+                return parsed
         except json.JSONDecodeError:
             pass
 
     index_match = re.search(r"final_answer_index\D+(\d+)", text, flags=re.I)
     if not index_match:
         index_match = re.search(r"answer(?: is|:)?\D+([01])\b", text, flags=re.I)
+    fallback_answer = stripped.splitlines()[0].strip() if stripped else None
     return {
         "final_answer_index": int(index_match.group(1)) if index_match else None,
-        "final_answer": None,
+        "final_answer": fallback_answer or None,
         "confidence": None,
         "rationale": text.strip(),
         "parse_fallback": True,
@@ -285,7 +455,7 @@ def parse_openclaw_output(output: str, agent: str, session_id: str) -> tuple[str
     if output.strip():
         outer = parse_outer_json(output)
         if outer:
-            payloads = outer.get("payloads") or []
+            payloads = outer.get("payloads") or (outer.get("result") or {}).get("payloads") or []
             if payloads:
                 raw_text = "\n".join(payload.get("text", "") for payload in payloads if payload.get("text"))
         else:
@@ -293,14 +463,15 @@ def parse_openclaw_output(output: str, agent: str, session_id: str) -> tuple[str
 
     if not raw_text:
         session_file = session_file_for(agent, session_id)
-        for line in session_file.read_text(encoding="utf-8").splitlines():
-            event = json.loads(line)
-            message = event.get("message") or {}
-            if message.get("role") != "assistant":
-                continue
-            chunks = [item.get("text", "") for item in message.get("content", []) if item.get("type") == "text"]
-            if chunks:
-                raw_text = "\n".join(chunks)
+        if session_file.exists():
+            for line in session_file.read_text(encoding="utf-8").splitlines():
+                event = json.loads(line)
+                message = event.get("message") or {}
+                if message.get("role") != "assistant":
+                    continue
+                chunks = [item.get("text", "") for item in message.get("content", []) if item.get("type") == "text"]
+                if chunks:
+                    raw_text = "\n".join(chunks)
 
     return raw_text, extract_json(raw_text)
 
@@ -354,9 +525,11 @@ def run_attempt(
     *,
     agent: str,
     input_mode: str,
+    openclaw_mode: str,
     timeout: int,
     attempt_index: int,
 ) -> dict:
+    answer_type = sample_answer_type(sample)
     session_id = f"native-openclaw-pathvqa-{sample['idx']}-{attempt_index}-{int(time.time() * 1000)}"
     started = time.time()
     openclaw_env = os.environ.copy()
@@ -366,11 +539,11 @@ def run_attempt(
     thinking_args = []
     if os.environ.get("OPENCLAW_THINKING"):
         thinking_args = ["--thinking", os.environ["OPENCLAW_THINKING"]]
-    proc = run(
+    command = ["openclaw", "agent"]
+    if openclaw_mode == "local":
+        command.append("--local")
+    command.extend(
         [
-            "openclaw",
-            "agent",
-            "--local",
             "--agent",
             agent,
             "--session-id",
@@ -381,20 +554,22 @@ def run_attempt(
             "--json",
             "--timeout",
             str(timeout),
-        ],
-        timeout=timeout + 60,
-        env=openclaw_env,
+        ]
     )
+    proc = run(command, timeout=timeout + 60, env=openclaw_env)
 
     row = {
         "idx": sample["idx"],
         "sample_id": sample["id"],
         "agent": agent,
         "input_mode": input_mode,
+        "openclaw_mode": openclaw_mode,
         "attempt_index": attempt_index,
         "question": sample["question"],
         "options": sample["options"],
         "gold": sample["gold"],
+        "gold_text": sample.get("gold_text", ""),
+        "answer_type": answer_type,
         "image_path": str(image_path) if image_path else None,
         "session_id": session_id,
         "ok": proc.returncode == 0,
@@ -417,15 +592,29 @@ def run_attempt(
     pred = parsed.get("final_answer_index")
     if isinstance(pred, str) and pred.isdigit():
         pred = int(pred)
-    valid_prediction = isinstance(pred, int) and 0 <= pred < len(sample["options"])
+    final_answer = parsed.get("final_answer")
+    if final_answer is not None and not isinstance(final_answer, str):
+        final_answer = str(final_answer)
+    if answer_type == "OPEN":
+        normalized_final_answer = normalize_answer_text(final_answer)
+        valid_prediction = bool(normalized_final_answer)
+        correct = open_answer_matches(final_answer, sample.get("gold_text", ""))
+    else:
+        normalized_final_answer = normalize_answer_text(final_answer)
+        valid_prediction = isinstance(pred, int) and 0 <= pred < len(sample["options"])
+        correct = pred == sample["gold"] if valid_prediction else False
+        if valid_prediction and not final_answer:
+            final_answer = str(sample["options"][pred])
     row.update(parsed)
     row.update(
         {
             "raw_answer_text": raw_text,
             "answer_mentions_image_failure": answer_mentions_image_failure,
             "final_answer_index": pred,
+            "final_answer": final_answer,
+            "normalized_final_answer": normalized_final_answer,
             "valid_prediction": valid_prediction,
-            "correct": pred == sample["gold"] if valid_prediction else False,
+            "correct": correct,
             "confidence_float": confidence_as_float(parsed.get("confidence")),
         }
     )
@@ -455,8 +644,9 @@ def compact_attempt(row: dict) -> dict:
     }
 
 
-def choose_majority(valid_attempts: list[dict]) -> dict:
-    counts = Counter(int(row["final_answer_index"]) for row in valid_attempts)
+def choose_majority(sample: dict, valid_attempts: list[dict]) -> dict:
+    answer_type = sample_answer_type(sample)
+    counts = Counter(key for row in valid_attempts if (key := answer_vote_key(sample, row)) is not None)
     if not counts:
         return {
             "final_answer_index": None,
@@ -470,11 +660,13 @@ def choose_majority(valid_attempts: list[dict]) -> dict:
 
     max_count = max(counts.values())
     tied = sorted(pred for pred, count in counts.items() if count == max_count)
-    by_pred: dict[int, list[dict]] = defaultdict(list)
+    by_pred: dict[int | str, list[dict]] = defaultdict(list)
     for row in valid_attempts:
-        by_pred[int(row["final_answer_index"])].append(row)
+        key = answer_vote_key(sample, row)
+        if key is not None:
+            by_pred[key].append(row)
 
-    def avg_conf(pred: int) -> float:
+    def avg_conf(pred: int | str) -> float:
         values = [row.get("confidence_float") for row in by_pred[pred] if row.get("confidence_float") is not None]
         return sum(values) / len(values) if values else -1.0
 
@@ -484,11 +676,11 @@ def choose_majority(valid_attempts: list[dict]) -> dict:
         key=lambda row: row.get("confidence_float") if row.get("confidence_float") is not None else -1.0,
     )
     return {
-        "final_answer_index": selected_pred,
+        "final_answer_index": selected_pred if answer_type == "CLOSED" else selected_attempt.get("final_answer_index"),
         "final_answer": selected_attempt.get("final_answer"),
         "confidence": selected_attempt.get("confidence"),
         "confidence_float": selected_attempt.get("confidence_float"),
-        "vote_counts": {str(k): v for k, v in sorted(counts.items())},
+        "vote_counts": {str(k): v for k, v in sorted(counts.items(), key=lambda item: str(item[0]))},
         "majority_tie": len(tied) > 1,
         "selection_reason": "majority" if len(tied) == 1 else "confidence_tiebreak",
     }
@@ -499,11 +691,13 @@ def run_sample(
     *,
     agent: str,
     input_mode: str,
+    openclaw_mode: str,
     image_sample: dict | None,
     timeout: int,
     votes: int,
     retry_invalid: int,
 ) -> dict:
+    answer_type = sample_answer_type(sample)
     image_path = None if input_mode == "question_only" else ensure_workspace_image(image_sample or sample)
     started = time.time()
     attempts: list[dict] = []
@@ -516,19 +710,20 @@ def run_sample(
             image_path,
             agent=agent,
             input_mode=input_mode,
+            openclaw_mode=openclaw_mode,
             timeout=timeout,
             attempt_index=attempt_index,
         )
         attempts.append(attempt)
         valid_attempts = [row for row in attempts if row.get("ok") and row.get("valid_prediction")]
-        vote_counts = Counter(int(row["final_answer_index"]) for row in valid_attempts)
+        vote_counts = Counter(key for row in valid_attempts if (key := answer_vote_key(sample, row)) is not None)
         if vote_counts and max(vote_counts.values()) >= majority_threshold:
             break
         if len(valid_attempts) >= votes:
             break
 
     valid_attempts = [row for row in attempts if row.get("ok") and row.get("valid_prediction")]
-    choice = choose_majority(valid_attempts)
+    choice = choose_majority(sample, valid_attempts)
     pred = choice["final_answer_index"]
     tool_calls = [tool for row in attempts for tool in (row.get("tool_calls") or [])]
     forbidden = [tool for row in attempts for tool in (row.get("forbidden_tool_calls") or [])]
@@ -538,9 +733,12 @@ def run_sample(
         "sample_id": sample["id"],
         "agent": agent,
         "input_mode": input_mode,
+        "openclaw_mode": openclaw_mode,
+        "answer_type": answer_type,
         "question": sample["question"],
         "options": sample["options"],
         "gold": sample["gold"],
+        "gold_text": sample.get("gold_text", ""),
         "image_source_sample_id": (image_sample or sample).get("id") if image_sample else None,
         "image_source_idx": (image_sample or sample).get("idx") if image_sample else None,
         "image_path": str(image_path) if image_path else None,
@@ -565,16 +763,24 @@ def run_sample(
         ),
     }
     row.update(choice)
-    row.update(
-        {
-            "valid_prediction": isinstance(pred, int) and 0 <= pred < len(sample["options"]),
-            "correct": pred == sample["gold"] if isinstance(pred, int) and 0 <= pred < len(sample["options"]) else False,
-        }
-    )
+    if answer_type == "OPEN":
+        row.update(
+            {
+                "valid_prediction": bool(normalize_answer_text(choice.get("final_answer"))),
+                "correct": open_answer_matches(choice.get("final_answer"), sample.get("gold_text", "")),
+            }
+        )
+    else:
+        row.update(
+            {
+                "valid_prediction": isinstance(pred, int) and 0 <= pred < len(sample["options"]),
+                "correct": pred == sample["gold"] if isinstance(pred, int) and 0 <= pred < len(sample["options"]) else False,
+            }
+        )
     return row
 
 
-def summarize(rows: list[dict], out_jsonl: Path, agent: str, input_mode: str) -> dict:
+def summarize(rows: list[dict], out_jsonl: Path, agent: str, input_mode: str, openclaw_mode: str) -> dict:
     done = [r for r in rows if r.get("ok") and r.get("valid_prediction")]
     correct = [r for r in done if r.get("correct") is True]
     invalid = [r for r in rows if r.get("ok") and not r.get("valid_prediction")]
@@ -586,6 +792,7 @@ def summarize(rows: list[dict], out_jsonl: Path, agent: str, input_mode: str) ->
         "mode": "openclaw_image_web" if "web" in agent else "native_openclaw_only",
         "agent": agent,
         "input_mode": input_mode,
+        "openclaw_mode": openclaw_mode,
         "requested_samples": len(rows),
         "attempts_used": attempts_used,
         "completed": len(done),
@@ -599,23 +806,52 @@ def summarize(rows: list[dict], out_jsonl: Path, agent: str, input_mode: str) ->
     }
 
 
+def log_progress(rows: list[dict], total: int, started: float, completed_before: int = 0) -> None:
+    processed = len(rows)
+    done = [r for r in rows if r.get("ok") and r.get("valid_prediction")]
+    correct = [r for r in done if r.get("correct") is True]
+    invalid = [r for r in rows if r.get("ok") and not r.get("valid_prediction")]
+    errors = [r for r in rows if not r.get("ok")]
+    elapsed = time.time() - started
+    processed_this_run = max(processed - completed_before, 0)
+    avg_sec = elapsed / processed_this_run if processed_this_run else 0.0
+    remaining = total - processed
+    eta_min = (avg_sec * remaining) / 60 if processed else 0.0
+    print(
+        (
+            f"[progress] {processed}/{total} "
+            f"valid={len(done)} correct={len(correct)} invalid={len(invalid)} errors={len(errors)} "
+            f"elapsed_min={elapsed / 60:.1f} eta_min={eta_min:.1f}"
+        ),
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", choices=sorted(DATASET_FILES), default="pathvqa")
     parser.add_argument("--samples-json", default="")
     parser.add_argument("--agent", default=DEFAULT_AGENT)
     parser.add_argument("--input-mode", choices=["normal", "question_only", "image_shuffle"], default="normal")
+    parser.add_argument("--openclaw-mode", choices=["gateway", "local"], default="gateway")
     parser.add_argument("--start-index", type=int, default=0)
     parser.add_argument("--max-samples", type=int, default=2)
     parser.add_argument("--timeout", type=int, default=500)
     parser.add_argument("--votes", type=int, default=1)
     parser.add_argument("--retry-invalid", type=int, default=0)
+    parser.add_argument("--parallelism", type=int, default=1)
+    parser.add_argument("--resume", action="store_true")
     parser.add_argument("--out-jsonl", default="")
     args = parser.parse_args()
     if args.votes < 1:
         raise ValueError("--votes must be >= 1")
     if args.retry_invalid < 0:
         raise ValueError("--retry-invalid must be >= 0")
+    if args.parallelism < 1:
+        raise ValueError("--parallelism must be >= 1")
+    if args.resume and not args.out_jsonl:
+        raise ValueError("--resume requires --out-jsonl so the existing JSONL path is explicit")
 
     samples = load_samples(args.dataset, args.start_index, args.max_samples, args.samples_json)
     out_jsonl = Path(args.out_jsonl) if args.out_jsonl else (
@@ -625,10 +861,32 @@ def main() -> int:
         )
     )
     out_jsonl.parent.mkdir(parents=True, exist_ok=True)
+    if not args.resume and out_jsonl.exists() and out_jsonl.stat().st_size > 0:
+        raise FileExistsError(
+            f"{out_jsonl} already exists. Use --resume to append, or remove the file to start over."
+        )
 
-    rows = []
-    with out_jsonl.open("w", encoding="utf-8") as f:
-        for offset, sample in enumerate(samples):
+    rows: list[dict] = []
+    completed_keys: set[str] = set()
+    duplicates_skipped = 0
+    if args.resume:
+        rows, completed_keys, duplicates_skipped = load_existing_rows(out_jsonl)
+        print(
+            (
+                f"[resume] loaded={len(rows)} duplicates_skipped={duplicates_skipped} "
+                f"path={out_jsonl}"
+            ),
+            file=sys.stderr,
+            flush=True,
+        )
+        if not out_jsonl.exists():
+            print(f"[resume] no existing file found, starting fresh at {out_jsonl}", file=sys.stderr, flush=True)
+    started = time.time()
+    completed_before = len(rows)
+    file_mode = "a" if args.resume else "w"
+    with out_jsonl.open(file_mode, encoding="utf-8") as f:
+        def run_one(offset_and_sample: tuple[int, dict]) -> dict:
+            offset, sample = offset_and_sample
             if args.input_mode == "image_shuffle" and len(samples) > 1:
                 image_sample = samples[(offset + 1) % len(samples)]
             elif args.input_mode == "question_only":
@@ -639,16 +897,43 @@ def main() -> int:
                 sample,
                 agent=args.agent,
                 input_mode=args.input_mode,
+                openclaw_mode=args.openclaw_mode,
                 image_sample=image_sample,
                 timeout=args.timeout,
                 votes=args.votes,
                 retry_invalid=args.retry_invalid,
             )
-            rows.append(row)
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
-            f.flush()
+            return row
 
-    print(json.dumps(summarize(rows, out_jsonl, args.agent, args.input_mode), ensure_ascii=False, indent=2))
+        work_items = [
+            item
+            for item in enumerate(samples)
+            if sample_key(item[1]) not in completed_keys
+        ]
+        if args.resume:
+            print(
+                f"[resume] remaining={len(work_items)} total={len(samples)}",
+                file=sys.stderr,
+                flush=True,
+            )
+        if args.parallelism == 1:
+            for item in work_items:
+                row = run_one(item)
+                rows.append(row)
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+                f.flush()
+                log_progress(rows, len(samples), started, completed_before)
+        else:
+            with ThreadPoolExecutor(max_workers=args.parallelism) as executor:
+                futures = [executor.submit(run_one, item) for item in work_items]
+                for future in as_completed(futures):
+                    row = future.result()
+                    rows.append(row)
+                    f.write(json.dumps(row, ensure_ascii=False) + "\n")
+                    f.flush()
+                    log_progress(rows, len(samples), started, completed_before)
+
+    print(json.dumps(summarize(rows, out_jsonl, args.agent, args.input_mode, args.openclaw_mode), ensure_ascii=False, indent=2))
     return 0
 
 

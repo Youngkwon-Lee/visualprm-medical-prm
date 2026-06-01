@@ -3,17 +3,20 @@
 This note records the current RunPod/OpenClaw state so another machine or agent
 can continue the VisualPRM + OpenClaw work without relying on local chat memory.
 
+For the recommended day-to-day split between MacBook and RunPod, see
+[LOCAL_FIRST_WORKFLOW.md](LOCAL_FIRST_WORKFLOW.md).
+
 Do not commit Hugging Face, RunPod, or S3 tokens. The user pasted credentials in
 chat during setup; rotate them if this environment will be shared.
 
 ## Active Pod
 
-- Pod ID: `9ub57bq7dfzwu5`
+- Pod ID used during the latest optimization pass: `fp8nzcdkersqy5`
 - Name: `visualprm-openclaw-a40`
 - SSH:
 
 ```bash
-ssh -i /Users/youngkwon/.runpod/ssh/RunPod-Key-Go -p 22155 root@194.68.245.144
+ssh -i /Users/youngkwon/.runpod/ssh/RunPod-Key-Go -p 22034 root@194.68.245.144
 ```
 
 - GPU observed: `NVIDIA A40`, about `46 GiB` VRAM
@@ -102,24 +105,69 @@ Validated:
 - Direct Ollama API call to `qwen2.5:7b-instruct` works.
 - Direct Ollama OpenAI-compatible `/v1/chat/completions` works.
 - OpenClaw sees `pathvqa-web` after removing the bad `OPENCLAW_HOME`.
-- A simple OpenClaw text turn worked:
-  - provider: `ollama`
-  - model: `qwen2.5:7b-instruct`
-  - output: `Hello! How can I assist you today?`
+- One R-PathVQA OpenClaw image-agent smoke completed correctly, but slowly:
+  - sample: `r_pathvqa_closed_1`
+  - correct: `true`
+  - latency: about `117s`
+  - tools: `image`, `web_search`, `image`, `image`, `web_search`, `web_fetch`
+- A partial warmed OpenClaw run over indices 1-4 completed 4 more rows:
+  - correct: `3/4`
+  - latency range: about `101s` to `119s` per sample
 
 Not yet validated:
 
-- Full PathVQA image-agent sample on RunPod.
 - Full benchmark run.
 
-The first image smoke was attempted before fixing the `OPENCLAW_HOME` issue, so
-that result should be discarded. A direct exact-JSON text prompt with
-`--thinking off` also produced an empty assistant payload once; the harness no
-longer forces `--thinking off`. To force a thinking mode, set:
+The first image smoke attempted before fixing the `OPENCLAW_HOME` issue should
+be discarded. Direct exact-JSON OpenClaw text prompts sometimes produced empty
+assistant payloads, and OpenClaw text turns remained slow even after warmup. To
+force a thinking mode, set:
 
 ```bash
 export OPENCLAW_THINKING=off
 ```
+
+## Latency Finding
+
+The A40 and Ollama are not the bottleneck. On the RunPod A40:
+
+- Direct Ollama `qwen2.5:7b-instruct` text call: about `0.43s`
+- Direct Ollama `gemma3:4b` image+question call: about `1.35s`
+- Direct Ollama 6k-token text prompt with `num_ctx=16000`: about `1.94s`
+- OpenClaw text turn through the agent harness: about `85-90s`
+- OpenClaw R-PathVQA image-agent samples: about `101-119s` each
+- OpenClaw `pathvqa-vision-direct` with `--local` embedded mode: about `84-96s`
+- OpenClaw `pathvqa-vision-direct` through the persistent gateway: about
+  `21-42s` in current tests
+
+The GPU and Ollama are fast; the slow part is the OpenClaw agent runtime path.
+The harness originally used `openclaw agent --local`, which OpenClaw documents
+as the embedded agent path, not the persistent gateway path. That was the main
+reason RunPod looked much slower than direct/manual model use. The harness now
+has `--openclaw-mode gateway` as the default, and `--openclaw-mode local` only
+for comparison.
+
+OpenClaw still adds a large agent/system/tool harness turn even for short
+prompts, and its CLI/gateway wrapper performs session bookkeeping and occasional
+compaction-safeguard work. For OpenClaw-native evaluation, prefer the
+`pathvqa-vision-direct` agent below: it uses `gemma3:4b` as the primary vision
+model and denies all tools, so each question is answered in one OpenClaw agent
+turn without repeated `image` tool calls.
+
+Validated `pathvqa-vision-direct` one-sample result:
+
+- Sample: `r_pathvqa_closed_1`
+- Correct: `true`
+- Attempts: `1`
+- Tool calls: `[]`
+- Image tool calls: `0`
+- Wall time:
+  - embedded `--local`: about `84-96s`
+  - gateway mode: about `21-42s`
+
+Do not raise the OpenClaw model context window to `32768` just to suppress the
+low-context compaction warning. In testing it removed `compactionCount: 1`, but
+made the end-to-end turn slower (`~40s`) than the 16k gateway path.
 
 ## Next Run Commands
 
@@ -178,8 +226,47 @@ python run_openclaw_pathvqa_native.py \
   --out-jsonl /workspace/visualprm_openclaw_harness/results_native_openclaw/runpod_r_pathvqa_smoke_0_1.jsonl
 ```
 
+One-sample OpenClaw vision-direct smoke:
+
+```bash
+cd /workspace/visualprm_openclaw_harness
+
+unset OPENCLAW_HOME
+python3 run_openclaw_pathvqa_native.py \
+  --samples-json /workspace/visualprm_openclaw_harness/data/medical_visual_process_bench/openclaw/r_pathvqa_closed_0_10_for_openclaw.json \
+  --agent pathvqa-vision-direct \
+  --openclaw-mode gateway \
+  --input-mode normal \
+  --start-index 0 \
+  --max-samples 1 \
+  --timeout 180 \
+  --votes 1 \
+  --retry-invalid 0 \
+  --parallelism 1 \
+  --out-jsonl /workspace/visualprm_openclaw_harness/results_native_openclaw/runpod_vision_direct_r_pathvqa_0_1.jsonl
+```
+
+The `pathvqa-vision-direct` agent must exist in `/root/.openclaw/openclaw.json`
+with primary model `ollama/gemma3:4b` and all tools denied. This keeps the
+experiment aligned to: one problem, one OpenClaw agent turn, one answer.
+
 If that passes, run the same command with `--max-samples 10` first. Only after
 that should the closed-only 669 QA benchmark be launched.
+
+Fast direct Ollama multimodal run:
+
+```bash
+cd /workspace/visualprm_openclaw_harness
+
+python3 run_ollama_vqa_direct.py \
+  --samples-json /workspace/visualprm_openclaw_harness/data/medical_visual_process_bench/openclaw/r_pathvqa_closed_0_10_for_openclaw.json \
+  --model gemma3:4b \
+  --start-index 0 \
+  --max-samples 10 \
+  --num-ctx 2048 \
+  --num-predict 128 \
+  --out-jsonl /workspace/visualprm_openclaw_harness/results_native_openclaw/runpod_direct_ollama_r_pathvqa_0_10.jsonl
+```
 
 ## PRM Reranker
 
