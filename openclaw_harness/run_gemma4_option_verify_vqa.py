@@ -119,6 +119,18 @@ def parse_prediction(raw_answer: str, options: list[str]) -> dict[str, Any]:
     }
 
 
+def parse_checklist(raw_answer: str) -> dict[str, Any]:
+    parsed = parse_json_object(raw_answer)
+    option_checklists = parsed.get("option_checklists") or parsed.get("checklists") or []
+    if not isinstance(option_checklists, list):
+        option_checklists = []
+    return {
+        **parsed,
+        "option_checklists": option_checklists,
+        "global_visual_questions": parsed.get("global_visual_questions") if isinstance(parsed.get("global_visual_questions"), list) else [],
+    }
+
+
 def load_teacher_visual_hints(path: Path | None) -> dict[str, str]:
     if path is None:
         return {}
@@ -142,7 +154,21 @@ def load_teacher_visual_hints(path: Path | None) -> dict[str, str]:
     return hints
 
 
-def build_prompt(sample: dict[str, Any], *, teacher_visual_hint: str = "") -> str:
+def build_checklist_prompt(sample: dict[str, Any]) -> str:
+    options = "\n".join(f"{idx}: {option}" for idx, option in enumerate(sample["options"]))
+    return (
+        "You are a medical pathology visual-checklist planner. Do not answer the question. "
+        "Do not use web search, filenames, benchmark memory, or dataset lookup. "
+        "Using only the clinical question, answer options, and general medical knowledge, create a checklist of what should be visibly inspected in the image for each option. "
+        "Return exactly one compact JSON object and no markdown.\n"
+        "JSON schema: {\"sample_id\": string, \"global_visual_questions\": string[], \"option_checklists\": [{\"index\": int, \"option\": string, \"expected_visible_support\": string[], \"expected_visible_mismatch\": string[]}]}\n"
+        "Rules: keep each checklist item concrete and visual; do not include the gold answer; do not rank options; include every option exactly once.\n"
+        f"Question: {sample['question']}\n"
+        f"Options:\n{options}\n"
+    )
+
+
+def build_prompt(sample: dict[str, Any], *, teacher_visual_hint: str = "", checklist: dict[str, Any] | None = None) -> str:
     options = "\n".join(f"{idx}: {option}" for idx, option in enumerate(sample["options"]))
     teacher_block = ""
     if teacher_visual_hint:
@@ -151,11 +177,19 @@ def build_prompt(sample: dict[str, Any], *, teacher_visual_hint: str = "") -> st
             "Use it only to check what visual findings may be present; do not treat it as an answer:\n"
             f"{teacher_visual_hint}\n"
         )
+    checklist_block = ""
+    if checklist and checklist.get("option_checklists"):
+        checklist_block = (
+            "\nModel-generated visual checklist from a separate text-only planning step. "
+            "Use it as a structured inspection guide, not as an answer:\n"
+            f"{json.dumps({'global_visual_questions': checklist.get('global_visual_questions', []), 'option_checklists': checklist.get('option_checklists', [])}, ensure_ascii=False)}\n"
+        )
     return (
         "You are a medical visual QA verifier. Use only the image, the question, and general medical knowledge. "
         "Do not use web search, benchmark memory, filenames, or dataset lookup. "
         "Return exactly one compact JSON object and no markdown.\n"
         f"{teacher_block}"
+        f"{checklist_block}"
         "Task:\n"
         "1. Write visual_inventory: 3 to 6 short observations that are directly visible in the image.\n"
         "2. For every option, write one option_scores item with keys: index, option, visible_support, visible_mismatch, score.\n"
@@ -168,17 +202,16 @@ def build_prompt(sample: dict[str, Any], *, teacher_visual_hint: str = "") -> st
     )
 
 
-def call_ollama(args: argparse.Namespace, prompt: str, image_path: Path) -> tuple[float, dict[str, Any]]:
-    image_b64 = base64.b64encode(image_path.read_bytes()).decode("ascii")
+def call_ollama(args: argparse.Namespace, prompt: str, image_path: Path | None = None) -> tuple[float, dict[str, Any]]:
+    message: dict[str, Any] = {
+        "role": "user",
+        "content": prompt,
+    }
+    if image_path is not None:
+        message["images"] = [base64.b64encode(image_path.read_bytes()).decode("ascii")]
     payload = {
         "model": args.model,
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt,
-                "images": [image_b64],
-            }
-        ],
+        "messages": [message],
         "stream": False,
         "think": False,
         "keep_alive": args.keep_alive,
@@ -208,7 +241,20 @@ def run_sample(
 ) -> dict[str, Any]:
     image_path = resolve_image_path(sample["image_path"], samples_path)
     teacher_hint = teacher_hints.get(sample["id"], "") if args.teacher_mode == "visual_hint" else ""
-    prompt = build_prompt(sample, teacher_visual_hint=teacher_hint)
+    checklist: dict[str, Any] = {}
+    checklist_raw_answer = ""
+    checklist_latency = 0.0
+    checklist_error = None
+    if args.checklist_mode == "model":
+        try:
+            checklist_latency, checklist_result = call_ollama(args, build_checklist_prompt(sample))
+            message = checklist_result.get("message") if isinstance(checklist_result, dict) else None
+            checklist_raw_answer = str((message or {}).get("content") or checklist_result.get("response") or "")
+            checklist = parse_checklist(checklist_raw_answer)
+        except (OSError, urllib.error.URLError, TimeoutError) as exc:
+            checklist_error = repr(exc)
+
+    prompt = build_prompt(sample, teacher_visual_hint=teacher_hint, checklist=checklist)
     try:
         latency, result = call_ollama(args, prompt, image_path)
         ok = True
@@ -238,6 +284,11 @@ def run_sample(
         "image_path": str(image_path),
         "ok": ok,
         "latency_sec": round(latency, 3),
+        "checklist_mode": args.checklist_mode,
+        "checklist_latency_sec": round(checklist_latency, 3),
+        "checklist_error": checklist_error,
+        "checklist_raw_answer_text": checklist_raw_answer,
+        "checklist": checklist,
         "teacher_visual_hint": teacher_hint,
         "raw_answer_text": raw_answer,
         "response_json": result,
@@ -277,6 +328,7 @@ def main() -> int:
     parser.add_argument("--num-predict", type=int, default=1024)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--keep-alive", default="30m")
+    parser.add_argument("--checklist-mode", choices=["none", "model"], default="none")
     parser.add_argument("--teacher-mode", choices=["none", "visual_hint"], default="none")
     parser.add_argument("--teacher-jsonl")
     parser.add_argument("--out-jsonl", required=True)
