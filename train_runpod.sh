@@ -87,6 +87,13 @@ case "$TRAINING_TASK" in
     VAL_FILE="${RATIONALE_VAL_FILE:-$WORKSPACE_DIR/data/rationale_val_sample.jsonl}"
     TRAIN_SCRIPT="train_rationale_generator.py"
     ;;
+  visual_distill)
+    TRAIN_FILE="${VISUAL_DISTILL_TRAIN_FILE:-$WORKSPACE_DIR/data/gpt_visual_distill_train.jsonl}"
+    VAL_FILE="${VISUAL_DISTILL_VAL_FILE:-$WORKSPACE_DIR/data/gpt_visual_distill_val.jsonl}"
+    TRAIN_SCRIPT="train_multimodal_distill.py"
+    DEFAULT_MODEL_NAME="google/gemma-4-E4B-it"
+    IMAGE_ROOT="${IMAGE_ROOT:-$WORKSPACE_DIR/data}"
+    ;;
   *)
     echo "Unknown TRAINING_TASK: $TRAINING_TASK"
     if [ -n "$SERVER_PID" ]; then
@@ -106,10 +113,16 @@ if [ ! -f "$TRAIN_FILE" ]; then
 fi
 
 echo "[3/3] Train model"
+EXTRA_TRAIN_ARGS=()
+if [ -n "${IMAGE_ROOT:-}" ]; then
+  EXTRA_TRAIN_ARGS+=(--image_root "$IMAGE_ROOT")
+fi
+
 python "$TRAIN_SCRIPT" \
-  --model_name "${MODEL_NAME:-Qwen/Qwen2.5-7B-Instruct}" \
+  --model_name "${MODEL_NAME:-${DEFAULT_MODEL_NAME:-Qwen/Qwen2.5-7B-Instruct}}" \
   --train_file "$TRAIN_FILE" \
   --val_file "$VAL_FILE" \
+  "${EXTRA_TRAIN_ARGS[@]}" \
   --batch_size "${TRAINING_BATCH_SIZE:-1}" \
   --grad_accum "${TRAINING_GRAD_ACCUM:-8}" \
   --epochs "${TRAINING_EPOCHS:-3}" \

@@ -1,0 +1,11 @@
+{
+  "source_jsonl": "/Users/youngkwon/projects/visualprm_openclaw_harness/results_native_openclaw/utah_webpath_closed_openai_gpt54_direct_0_97_newkey.jsonl",
+  "source_rows": 97,
+  "kept_teacher_rows": 86,
+  "descriptor_records": 86,
+  "verifier_records": 86,
+  "all_records": 172,
+  "train_records": 155,
+  "val_records": 17,
+  "warning": "Pilot/debug distillation only if source_jsonl is a benchmark test split; do not evaluate fairly on the same split."
+}
