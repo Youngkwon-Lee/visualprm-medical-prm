@@ -168,7 +168,13 @@ def build_checklist_prompt(sample: dict[str, Any]) -> str:
     )
 
 
-def build_prompt(sample: dict[str, Any], *, teacher_visual_hint: str = "", checklist: dict[str, Any] | None = None) -> str:
+def build_prompt(
+    sample: dict[str, Any],
+    *,
+    teacher_visual_hint: str = "",
+    checklist: dict[str, Any] | None = None,
+    scoring_mode: str = "standard",
+) -> str:
     options = "\n".join(f"{idx}: {option}" for idx, option in enumerate(sample["options"]))
     teacher_block = ""
     if teacher_visual_hint:
@@ -184,18 +190,32 @@ def build_prompt(sample: dict[str, Any], *, teacher_visual_hint: str = "", check
             "Use it as a structured inspection guide, not as an answer:\n"
             f"{json.dumps({'global_visual_questions': checklist.get('global_visual_questions', []), 'option_checklists': checklist.get('option_checklists', [])}, ensure_ascii=False)}\n"
         )
+    scoring_rules = ""
+    option_schema = "{\"index\": int, \"option\": string, \"visible_support\": string, \"visible_mismatch\": string, \"score\": int}"
+    if scoring_mode == "strict_visual":
+        option_schema = "{\"index\": int, \"option\": string, \"direct_visual_support\": string, \"stem_support\": string, \"visible_mismatch\": string, \"support_source\": string, \"score\": int}"
+        scoring_rules = (
+            "Strict visual scoring rules:\n"
+            "- support_source must be one of: direct_visual, stem_only, general_knowledge, none.\n"
+            "- Give score 4 or 5 only when direct_visual_support names a concrete visible finding in this image that specifically supports the option.\n"
+            "- If support is mainly from the clinical stem but not directly visible, score must be at most 2.\n"
+            "- If support is only general medical plausibility, score must be at most 1.\n"
+            "- Penalize options that explain the patient generally but do not match the visible morphology.\n"
+            "- A concrete visible mismatch should cap score at 2 even if the stem sounds plausible.\n"
+        )
     return (
         "You are a medical visual QA verifier. Use only the image, the question, and general medical knowledge. "
         "Do not use web search, benchmark memory, filenames, or dataset lookup. "
         "Return exactly one compact JSON object and no markdown.\n"
         f"{teacher_block}"
         f"{checklist_block}"
+        f"{scoring_rules}"
         "Task:\n"
         "1. Write visual_inventory: 3 to 6 short observations that are directly visible in the image.\n"
         "2. For every option, write one option_scores item with keys: index, option, visible_support, visible_mismatch, score.\n"
         "3. score must be an integer from 0 to 5. Give high score only when visible findings and the clinical stem both support the option.\n"
         "4. Choose final_answer_index as the option with the strongest visual support and weakest mismatch.\n"
-        "JSON schema: {\"sample_id\": string, \"visual_inventory\": string[], \"option_scores\": [{\"index\": int, \"option\": string, \"visible_support\": string, \"visible_mismatch\": string, \"score\": int}], \"final_answer_index\": int, \"final_answer\": string, \"confidence\": number, \"rationale\": string}\n"
+        f"JSON schema: {{\"sample_id\": string, \"visual_inventory\": string[], \"option_scores\": [{option_schema}], \"final_answer_index\": int, \"final_answer\": string, \"confidence\": number, \"rationale\": string}}\n"
         f"Question: {sample['question']}\n"
         f"Options:\n{options}\n"
         f"final_answer_index must be between 0 and {len(sample['options']) - 1}."
@@ -254,7 +274,7 @@ def run_sample(
         except (OSError, urllib.error.URLError, TimeoutError) as exc:
             checklist_error = repr(exc)
 
-    prompt = build_prompt(sample, teacher_visual_hint=teacher_hint, checklist=checklist)
+    prompt = build_prompt(sample, teacher_visual_hint=teacher_hint, checklist=checklist, scoring_mode=args.scoring_mode)
     try:
         latency, result = call_ollama(args, prompt, image_path)
         ok = True
@@ -276,6 +296,7 @@ def run_sample(
         "agent": "gemma4-option-verify",
         "model": args.model,
         "teacher_mode": args.teacher_mode,
+        "scoring_mode": args.scoring_mode,
         "answer_type": "CLOSED",
         "question": sample["question"],
         "options": sample["options"],
@@ -329,6 +350,7 @@ def main() -> int:
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--keep-alive", default="30m")
     parser.add_argument("--checklist-mode", choices=["none", "model"], default="none")
+    parser.add_argument("--scoring-mode", choices=["standard", "strict_visual"], default="standard")
     parser.add_argument("--teacher-mode", choices=["none", "visual_hint"], default="none")
     parser.add_argument("--teacher-jsonl")
     parser.add_argument("--out-jsonl", required=True)
